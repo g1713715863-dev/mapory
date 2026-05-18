@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  /* Mapory 橙色主题 */
+  --color-primary-50:  #fdf6f2;
+  --color-primary-100: #fae8dc;
+  --color-primary-200: #f5c9ad;
+  --color-primary-300: #eda87e;
+  --color-primary-400: #e8925f;
+  --color-primary-500: #e0733e;
+  --color-primary-600: #c45a28;
+  --color-primary-700: #9e4520;
+  --color-primary-800: #7a3419;
+  --color-primary-900: #5c2712;
+
+  /* 中性色 */
+  --color-stone-50:  #fafaf9;
+  --color-stone-100: #f5f5f4;
+  --color-stone-200: #e7e5e4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
+
+  /* 字体 */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: #1c1917;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 地图容器全屏不滚动 */
+.map-container {
+  position: fixed;
+  inset: 0;
+}
+
+/* 照片网格悬停效果 */
+.photo-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.photo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+
+/* Mapbox marker 气泡 */
+.photo-marker {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.photo-marker:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
