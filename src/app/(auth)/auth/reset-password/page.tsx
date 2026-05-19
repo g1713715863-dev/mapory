@@ -14,11 +14,24 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
+  const [expired, setExpired] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setReady(!!data.session)
-    })
+    // PKCE flow: code is in query params
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) setExpired(true)
+        else setReady(true)
+      })
+    } else {
+      // Already have session (e.g. navigated back)
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setReady(true)
+        else setExpired(true)
+      })
+    }
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,10 +45,25 @@ export default function ResetPasswordPage() {
     router.push('/album')
   }
 
+  if (expired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-lg font-semibold text-stone-800 mb-2">链接已失效</h2>
+          <p className="text-stone-500 text-sm mb-4">重置链接只能使用一次，请重新申请</p>
+          <Link href="/auth/login" className="text-primary-500 hover:underline text-sm">
+            返回登录页重新申请
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-stone-500 text-sm">验证链接中…</p>
+        <p className="text-stone-500 text-sm">验证中…</p>
       </div>
     )
   }
