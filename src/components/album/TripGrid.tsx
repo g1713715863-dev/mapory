@@ -1,23 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
-import { MapPin, Calendar } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { MapPin, Calendar, Pencil } from 'lucide-react'
 import type { Photo, Trip } from '@/types'
 import PhotoLightbox from '@/components/photo/PhotoLightbox'
+import PhotoEditModal from '@/components/photo/PhotoEditModal'
 import { formatDate } from '@/lib/utils'
 
 interface TripGridProps {
   trip: Trip
   photos: Photo[]
+  allTrips: Trip[]
+  isAdmin: boolean
 }
 
-export default function TripGrid({ trip, photos }: TripGridProps) {
+export default function TripGrid({ trip, photos, allTrips, isAdmin }: TripGridProps) {
+  const router = useRouter()
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [editPhoto, setEditPhoto] = useState<Photo | null>(null)
 
   return (
     <section>
-      {/* 行程标题 */}
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-stone-900">{trip.name}</h2>
@@ -39,34 +43,43 @@ export default function TripGrid({ trip, photos }: TripGridProps) {
         </div>
       </div>
 
-      {/* 照片网格 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {photos.map((photo, idx) => (
-          <button
-            key={photo.id}
-            onClick={() => setLightboxIndex(idx)}
-            className="photo-card relative aspect-square rounded-xl overflow-hidden bg-stone-100 group"
-          >
-            <img
-              src={photo.thumbnail_url || photo.url}
-              alt={photo.title || ''}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            {/* 标题 overlay */}
-            {photo.title && (
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <p className="text-white text-xs font-medium truncate">{photo.title}</p>
-              </div>
+          <div key={photo.id} className="relative group">
+            <button
+              onClick={() => setLightboxIndex(idx)}
+              className="photo-card relative aspect-square rounded-xl overflow-hidden bg-stone-100 w-full block"
+            >
+              <img
+                src={photo.thumbnail_url || photo.url}
+                alt={photo.title || ''}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              {photo.title && (
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-white text-xs font-medium truncate">{photo.title}</p>
+                </div>
+              )}
+              {photo.location_name && (
+                <div className="absolute top-1.5 left-1.5">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/30 text-white text-[10px] backdrop-blur-sm">
+                    <MapPin size={9} />
+                    <span className="truncate max-w-[80px]">{photo.location_name}</span>
+                  </span>
+                </div>
+              )}
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => setEditPhoto(photo)}
+                className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/65"
+                title="编辑"
+              >
+                <Pencil size={11} />
+              </button>
             )}
-            {photo.location_name && (
-              <div className="absolute top-1.5 left-1.5">
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/30 text-white text-[10px] backdrop-blur-sm">
-                  <MapPin size={9} />
-                  <span className="truncate max-w-[80px]">{photo.location_name}</span>
-                </span>
-              </div>
-            )}
-          </button>
+          </div>
         ))}
       </div>
 
@@ -75,6 +88,16 @@ export default function TripGrid({ trip, photos }: TripGridProps) {
           photos={photos}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      {editPhoto && (
+        <PhotoEditModal
+          photo={editPhoto}
+          trips={allTrips}
+          onClose={() => setEditPhoto(null)}
+          onSave={() => { setEditPhoto(null); router.refresh() }}
+          onDelete={() => { setEditPhoto(null); router.refresh() }}
         />
       )}
     </section>

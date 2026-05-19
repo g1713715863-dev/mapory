@@ -73,6 +73,8 @@ export default async function AlbumPage() {
           key={trip.id}
           trip={trip}
           photos={photosByTrip[trip.id] ?? []}
+          allTrips={(trips as Trip[]) ?? []}
+          isAdmin={isAdmin}
         />
       ))}
     </div>
