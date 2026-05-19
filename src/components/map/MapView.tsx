@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import Map, { Marker, Popup, NavigationControl } from 'react-map-gl/mapbox'
+import Map, { Marker, Popup, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Photo, Trip } from '@/types'
 import { X } from 'lucide-react'
@@ -14,6 +14,7 @@ interface MapViewProps {
 export default function MapView({ photos, trips }: MapViewProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [activeTrip, setActiveTrip] = useState<string>('all')
+  const mapRef = useRef<MapRef>(null)
 
   const visiblePhotos = photos.filter(
     (p) => p.lat && p.lng && (activeTrip === 'all' || p.trip_id === activeTrip)
@@ -23,14 +24,29 @@ export default function MapView({ photos, trips }: MapViewProps) {
     setSelectedPhoto(photo)
   }, [])
 
+  function handleMapLoad() {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    const layers = ['country-label', 'state-label', 'settlement-label',
+                    'settlement-subdivision-label', 'natural-point-label']
+    for (const id of layers) {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, 'text-field',
+          ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']])
+      }
+    }
+  }
+
   return (
     <div className="relative h-full w-full">
       <Map
+        ref={mapRef}
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         initialViewState={{ longitude: 116.4, latitude: 39.9, zoom: 4 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/light-v11"
         onClick={() => setSelectedPhoto(null)}
+        onLoad={handleMapLoad}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
