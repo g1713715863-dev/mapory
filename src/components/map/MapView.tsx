@@ -67,7 +67,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
                            ring-2 ring-transparent group-hover:ring-primary-400 transition-all"
               >
                 <img
-                  src={photo.thumbnail_url || photo.url}
+                  src={photo.thumbnail_url || (/\.(heic|heif)$/i.test(photo.url) ? `/api/photos/${photo.id}/jpeg?size=thumb` : photo.url)}
                   alt={photo.title || ''}
                   className="w-full h-full object-cover"
                 />

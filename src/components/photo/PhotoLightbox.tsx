@@ -67,7 +67,7 @@ export default function PhotoLightbox({ photos, initialIndex, onClose }: PhotoLi
       {/* 主图区 */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-12 min-w-0">
         <img
-          src={photo.url}
+          src={/\.(heic|heif)$/i.test(photo.url) ? `/api/photos/${photo.id}/jpeg` : photo.url}
           alt={photo.title || ''}
           className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl"
         />

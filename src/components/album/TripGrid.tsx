@@ -3,6 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapPin, Calendar, Pencil } from 'lucide-react'
+
+function thumbSrc(photo: import('@/types').Photo) {
+  if (photo.thumbnail_url) return photo.thumbnail_url
+  if (/\.(heic|heif)$/i.test(photo.url)) return `/api/photos/${photo.id}/jpeg?size=thumb`
+  return photo.url
+}
 import type { Photo, Trip } from '@/types'
 import PhotoLightbox from '@/components/photo/PhotoLightbox'
 import PhotoEditModal from '@/components/photo/PhotoEditModal'
@@ -51,7 +57,7 @@ export default function TripGrid({ trip, photos, allTrips, isAdmin }: TripGridPr
               className="photo-card relative aspect-square rounded-xl overflow-hidden bg-stone-100 w-full block"
             >
               <img
-                src={photo.thumbnail_url || photo.url}
+                src={thumbSrc(photo)}
                 alt={photo.title || ''}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
