@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { uploadToR2 } from '@/lib/r2'
 import sharp from 'sharp'
+import { heicToJpeg } from '@/lib/heic'
 
 // Public endpoint — converts a stored HEIC photo to JPEG on first request,
 // saves both full-res and thumbnail back to R2, updates the DB, then returns JPEG.
@@ -30,9 +31,10 @@ export async function GET(
 
   let fullJpeg: Buffer, thumbJpeg: Buffer
   try {
+    const jpegBuffer = await heicToJpeg(buffer, 0.9)
     ;[fullJpeg, thumbJpeg] = await Promise.all([
-      sharp(buffer).jpeg({ quality: 90 }).toBuffer(),
-      sharp(buffer).resize(400).jpeg({ quality: 75 }).toBuffer(),
+      Promise.resolve(jpegBuffer),
+      sharp(jpegBuffer).resize(400).jpeg({ quality: 75 }).toBuffer(),
     ])
   } catch (e) {
     return new NextResponse(`Conversion failed: ${e}`, { status: 500 })

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { uploadToR2 } from '@/lib/r2'
 import { randomUUID } from 'crypto'
 import sharp from 'sharp'
+import { heicToJpeg } from '@/lib/heic'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -39,11 +40,11 @@ export async function POST(request: NextRequest) {
   let mime = file.type || 'image/jpeg'
   if (rawExt === 'heic' || rawExt === 'heif') {
     try {
-      buffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer()
+      buffer = await heicToJpeg(buffer, 0.9)
       ext = 'jpg'
       mime = 'image/jpeg'
     } catch (e) {
-      return NextResponse.json({ error: 'HEIC conversion failed — please re-upload as JPEG', detail: String(e) }, { status: 422 })
+      return NextResponse.json({ error: `HEIC 转换失败：${String(e)}` }, { status: 422 })
     }
   }
 
