@@ -143,6 +143,14 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
                 className="w-full px-2.5 py-1.5 text-sm rounded-lg border border-stone-200 outline-none focus:ring-1 focus:ring-primary-300 bg-white"
               />
 
+              <textarea
+                value={photo.body}
+                onChange={(e) => updatePhoto(idx, { body: e.target.value })}
+                placeholder="记录心得、故事…（仅详情页显示）"
+                rows={2}
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-stone-200 outline-none focus:ring-1 focus:ring-primary-300 bg-white resize-none leading-relaxed"
+              />
+
               {/* 位置行 */}
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">

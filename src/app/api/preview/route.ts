@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer())
   try {
     const jpeg = await sharp(buffer).resize(400).jpeg({ quality: 80 }).toBuffer()
-    return new NextResponse(jpeg.buffer as ArrayBuffer, { headers: { 'Content-Type': 'image/jpeg' } })
+    return new NextResponse(new Blob([new Uint8Array(jpeg)], { type: 'image/jpeg' }))
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
