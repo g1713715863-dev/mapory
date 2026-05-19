@@ -47,7 +47,7 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
           // Try embedded EXIF thumbnail first (instant, no network)
           try {
             const buf = await exifr.thumbnail(file)
-            if (buf) preview = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }))
+            if (buf) preview = URL.createObjectURL(new Blob([new Uint8Array(buf)], { type: 'image/jpeg' }))
           } catch {}
           // If no embedded thumbnail, ask the server to convert a small preview
           if (!preview) {
