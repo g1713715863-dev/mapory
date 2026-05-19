@@ -36,7 +36,16 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
 
     const parsed: ParsedPhoto[] = await Promise.all(
       Array.from(files).map(async (file) => {
-        const preview = URL.createObjectURL(file)
+        const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
+        let previewBlob: Blob = file
+        if (isHeic) {
+          try {
+            const heic2any = (await import('heic2any')).default
+            const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 })
+            previewBlob = Array.isArray(converted) ? converted[0] : converted
+          } catch {}
+        }
+        const preview = URL.createObjectURL(previewBlob)
         let lat = null, lng = null, takenAt = null
         try {
           const gps = await exifr.gps(file)
