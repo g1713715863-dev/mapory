@@ -30,13 +30,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing file or trip_id' }, { status: 400 })
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer())
   const id = randomUUID()
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const rawExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
 
-  // 上传原图
+  // HEIC/HEIF 转 JPEG（浏览器普遍不支持 HEIC 显示）
+  let ext = rawExt
+  let mime = file.type
+  if (rawExt === 'heic' || rawExt === 'heif') {
+    try {
+      buffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer()
+      ext = 'jpg'
+      mime = 'image/jpeg'
+    } catch {}
+  }
+
+  // 上传原图（HEIC 已转为 JPEG）
   const key = `photos/${id}.${ext}`
-  const url = await uploadToR2(key, buffer, file.type)
+  const url = await uploadToR2(key, buffer, mime)
 
   // 生成缩略图（400px 宽）
   let thumbnailUrl: string | null = null
