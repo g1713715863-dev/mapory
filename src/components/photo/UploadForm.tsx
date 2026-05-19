@@ -28,6 +28,7 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
   const [photos, setPhotos] = useState<ParsedPhoto[]>([])
   const [uploading, setUploading] = useState(false)
   const [done, setDone] = useState(0)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [pickerIdx, setPickerIdx] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +47,7 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
           // Try embedded EXIF thumbnail first (instant, no network)
           try {
             const buf = await exifr.thumbnail(file)
-            if (buf) preview = URL.createObjectURL(new Blob([buf.buffer as ArrayBuffer], { type: 'image/jpeg' }))
+            if (buf) preview = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }))
           } catch {}
           // If no embedded thumbnail, ask the server to convert a small preview
           if (!preview) {
@@ -97,6 +98,7 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
 
   async function handleUpload() {
     setUploading(true)
+    setUploadError(null)
     setDone(0)
     for (const photo of photos) {
       const form = new FormData()
@@ -108,7 +110,13 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
       if (photo.lng != null) form.append('lng', String(photo.lng))
       if (photo.locationName) form.append('location_name', photo.locationName)
       if (photo.takenAt) form.append('taken_at', photo.takenAt)
-      await fetch('/api/upload', { method: 'POST', body: form })
+      const res = await fetch('/api/upload', { method: 'POST', body: form })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setUploadError(`"${photo.file.name}" 上传失败：${err.error ?? res.status}`)
+        setUploading(false)
+        return
+      }
       setDone((d) => d + 1)
     }
     setPhotos([])
@@ -204,6 +212,12 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
             </div>
           </div>
         ))}
+
+        {uploadError && (
+          <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+            {uploadError}
+          </div>
+        )}
 
         {photos.length > 0 && (
           <button
