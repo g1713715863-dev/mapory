@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, MapPin, X, Check } from 'lucide-react'
+import { Upload, MapPin, X, Check, Images } from 'lucide-react'
 import type { Trip } from '@/types'
 import LocationPickerModal from './LocationPickerModal'
 
@@ -37,16 +37,14 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
     const parsed: ParsedPhoto[] = await Promise.all(
       Array.from(files).map(async (file) => {
         const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
-        let preview: string
+        let preview = ''
         if (isHeic) {
           try {
-            const fd = new FormData()
-            fd.append('file', file)
-            const res = await fetch('/api/preview', { method: 'POST', body: fd })
-            preview = URL.createObjectURL(await res.blob())
-          } catch {
-            preview = URL.createObjectURL(file)
-          }
+            const thumbnailBuf = await exifr.thumbnail(file)
+            if (thumbnailBuf) {
+              preview = URL.createObjectURL(new Blob([thumbnailBuf.buffer as ArrayBuffer], { type: 'image/jpeg' }))
+            }
+          } catch {}
         } else {
           preview = URL.createObjectURL(file)
         }
@@ -128,7 +126,14 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
         {/* 已选照片列表 */}
         {photos.map((photo, idx) => (
           <div key={idx} className="flex gap-3 bg-stone-50 rounded-2xl p-3 border border-stone-100">
-            <img src={photo.preview} alt="" className="w-24 h-24 object-cover rounded-xl shrink-0" />
+            {photo.preview ? (
+              <img src={photo.preview} alt="" className="w-24 h-24 object-cover rounded-xl shrink-0" />
+            ) : (
+              <div className="w-24 h-24 rounded-xl bg-stone-100 border border-stone-200 flex flex-col items-center justify-center shrink-0 gap-1">
+                <Images size={20} className="text-stone-300" />
+                <span className="text-[9px] text-stone-400 font-medium">HEIC</span>
+              </div>
+            )}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-stone-500 truncate max-w-[160px]">{photo.file.name}</span>
