@@ -6,17 +6,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!url || !key) {
+  if (!rawUrl || !key) {
     return NextResponse.json(
-      { error: 'missing env vars', hasUrl: !!url, hasKey: !!key },
+      { error: 'missing env vars', hasUrl: !!rawUrl, hasKey: !!key },
       { status: 500 }
     )
   }
 
-  const base = url.replace(/\/$/, '')
+  // Strip any path suffix — only keep the origin (e.g. https://xxx.supabase.co)
+  const base = new URL(rawUrl).origin
 
   const listRes = await fetch(`${base}/auth/v1/admin/users?page=1&per_page=50`, {
     headers: {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!listRes.ok) {
     const body = await listRes.text()
     return NextResponse.json(
-      { error: `listUsers ${listRes.status}`, body },
+      { error: `listUsers ${listRes.status}`, urlUsed: `${base}/auth/v1/admin/users`, body },
       { status: 500 }
     )
   }
