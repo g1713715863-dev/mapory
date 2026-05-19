@@ -36,13 +36,15 @@ export async function POST(request: NextRequest) {
 
   // HEIC/HEIF 转 JPEG（浏览器普遍不支持 HEIC 显示）
   let ext = rawExt
-  let mime = file.type
+  let mime = file.type || 'image/jpeg'
   if (rawExt === 'heic' || rawExt === 'heif') {
     try {
       buffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer()
       ext = 'jpg'
       mime = 'image/jpeg'
-    } catch {}
+    } catch (e) {
+      return NextResponse.json({ error: 'HEIC conversion failed — please re-upload as JPEG', detail: String(e) }, { status: 422 })
+    }
   }
 
   // 上传原图（HEIC 已转为 JPEG）

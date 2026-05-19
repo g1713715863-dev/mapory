@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, MapPin, X, Check, Loader } from 'lucide-react'
+import { Upload, MapPin, X, Check } from 'lucide-react'
 import type { Trip } from '@/types'
 import LocationPickerModal from './LocationPickerModal'
 
@@ -41,13 +41,22 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
         const id = crypto.randomUUID()
         const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
 
-        // Quick EXIF thumbnail for immediate preview
         let preview = ''
         if (isHeic) {
+          // Try embedded EXIF thumbnail first (instant, no network)
           try {
             const buf = await exifr.thumbnail(file)
             if (buf) preview = URL.createObjectURL(new Blob([buf.buffer as ArrayBuffer], { type: 'image/jpeg' }))
           } catch {}
+          // If no embedded thumbnail, ask the server to convert a small preview
+          if (!preview) {
+            try {
+              const fd = new FormData()
+              fd.append('file', file)
+              const res = await fetch('/api/preview', { method: 'POST', body: fd })
+              if (res.ok) preview = URL.createObjectURL(await res.blob())
+            } catch {}
+          }
         } else {
           preview = URL.createObjectURL(file)
         }
@@ -60,36 +69,11 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
           if (exif?.DateTimeOriginal) takenAt = exif.DateTimeOriginal.toISOString()
         } catch {}
 
-        return { id, file, preview, lat, lng, takenAt, title: '', body: '', locationName: '', tripId: defaultTripId, converting: isHeic }
+        return { id, file, preview, lat, lng, takenAt, title: '', body: '', locationName: '', tripId: defaultTripId, converting: false }
       })
     )
 
     setPhotos((prev) => [...prev, ...newPhotos])
-
-    // Background HEIC → JPEG conversion (replaces the upload file and improves preview)
-    for (const photo of newPhotos) {
-      if (!photo.converting) continue
-      ;(async () => {
-        try {
-          const heic2any = (await import('heic2any')).default
-          const result = await heic2any({ blob: photo.file, toType: 'image/jpeg', quality: 0.92 })
-          const jpegBlob = (Array.isArray(result) ? result[0] : result) as Blob
-          const jpegFile = new File(
-            [jpegBlob],
-            photo.file.name.replace(/\.(heic|heif)$/i, '.jpg'),
-            { type: 'image/jpeg' }
-          )
-          const newPreview = URL.createObjectURL(jpegBlob)
-          setPhotos((prev) => prev.map((p) => {
-            if (p.id !== photo.id) return p
-            if (p.preview) URL.revokeObjectURL(p.preview)
-            return { ...p, file: jpegFile, preview: newPreview, converting: false }
-          }))
-        } catch {
-          setPhotos((prev) => prev.map((p) => p.id === photo.id ? { ...p, converting: false } : p))
-        }
-      })()
-    }
   }
 
   function updatePhoto(id: string, updates: Partial<ParsedPhoto>) {
@@ -132,8 +116,6 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
     onSuccess()
   }
 
-  const isConverting = photos.some((p) => p.converting)
-
   return (
     <>
       <div className="space-y-4">
@@ -158,20 +140,11 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
 
         {photos.map((photo, idx) => (
           <div key={photo.id} className="flex gap-3 bg-stone-50 rounded-2xl p-3 border border-stone-100">
-            {/* 预览图 + 转换进度 */}
-            <div className="relative w-24 h-24 shrink-0">
-              {photo.preview ? (
-                <img src={photo.preview} alt="" className="w-full h-full object-cover rounded-xl" />
-              ) : (
-                <div className="w-full h-full rounded-xl bg-stone-100 border border-stone-200" />
-              )}
-              {photo.converting && (
-                <div className="absolute inset-0 rounded-xl bg-black/35 flex flex-col items-center justify-center gap-1">
-                  <Loader size={16} className="text-white animate-spin" />
-                  <span className="text-white text-[9px] font-medium">转换中</span>
-                </div>
-              )}
-            </div>
+            {photo.preview ? (
+              <img src={photo.preview} alt="" className="w-24 h-24 object-cover rounded-xl shrink-0" />
+            ) : (
+              <div className="w-24 h-24 rounded-xl bg-stone-100 border border-stone-200 shrink-0" />
+            )}
 
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center justify-between">
@@ -235,13 +208,11 @@ export default function UploadForm({ trips, onSuccess }: UploadFormProps) {
         {photos.length > 0 && (
           <button
             onClick={handleUpload}
-            disabled={uploading || isConverting}
+            disabled={uploading}
             className="w-full py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {uploading ? (
-              <><Loader size={16} className="animate-spin" /> 上传中 {done}/{photos.length}</>
-            ) : isConverting ? (
-              <><Loader size={16} className="animate-spin" /> 正在处理 HEIC 文件…</>
+              <><span className="animate-spin">⏳</span> 上传中 {done}/{photos.length}</>
             ) : (
               <><Upload size={16} /> 上传 {photos.length} 张照片</>
             )}
