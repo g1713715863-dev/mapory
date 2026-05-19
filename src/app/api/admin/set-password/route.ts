@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
@@ -7,19 +6,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !key) {
+    return NextResponse.json(
+      { error: 'missing env vars', hasUrl: !!url, hasKey: !!key },
+      { status: 500 }
+    )
+  }
+
+  const base = url.replace(/\/$/, '')
+
+  const listRes = await fetch(`${base}/auth/v1/admin/users?page=1&per_page=50`, {
+    headers: {
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+    },
+  })
+
+  if (!listRes.ok) {
+    const body = await listRes.text()
+    return NextResponse.json(
+      { error: `listUsers ${listRes.status}`, body },
+      { status: 500 }
+    )
+  }
+
+  const { users } = await listRes.json()
+  const user = (users as { id: string; email: string }[]).find(
+    (u) => u.email === 'g1713715863@gmail.com'
   )
 
-  const { data, error: listErr } = await admin.auth.admin.listUsers()
-  if (listErr) return NextResponse.json({ error: listErr.message }, { status: 500 })
+  if (!user) {
+    return NextResponse.json(
+      { error: 'user not found', total: users?.length },
+      { status: 404 }
+    )
+  }
 
-  const user = data.users.find(u => u.email === 'g1713715863@gmail.com')
-  if (!user) return NextResponse.json({ error: 'user not found' }, { status: 404 })
+  const updateRes = await fetch(`${base}/auth/v1/admin/users/${user.id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      apikey: key,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: newPassword }),
+  })
 
-  const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!updateRes.ok) {
+    const body = await updateRes.text()
+    return NextResponse.json(
+      { error: `updateUser ${updateRes.status}`, body },
+      { status: 500 }
+    )
+  }
+
   return NextResponse.json({ success: true })
 }
