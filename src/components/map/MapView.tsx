@@ -140,6 +140,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
 
   const badgePx = Math.round(scale.markerPx * 0.32)
   const dotPx   = Math.round(scale.markerPx * 0.18)
+  const stride  = Math.round(scale.markerPx * 0.52)
 
   return (
     <div className="relative h-full w-full">
@@ -149,6 +150,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
         initialViewState={{ longitude: 116.4, latitude: 39.9, zoom: 4 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/light-v11"
+        onClick={closeModal}
         onLoad={handleMapLoad}
         onMove={(e) => {
           const z = Math.floor(e.viewState.zoom)
@@ -162,7 +164,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
           const [lng, lat] = cluster.geometry.coordinates
           const props = cluster.properties
 
-          // ── Cluster marker ──────────────────────────────────────────────
+          // ── Cluster marker (multiple nearby locations) ───────────────────
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if ((props as any).cluster) {
             const clusterId = (props as { cluster_id: number }).cluster_id
@@ -171,8 +173,8 @@ export default function MapView({ photos, trips }: MapViewProps) {
             const previewPhotos = leaves.map((l) => (l.properties as PointProps).group.photos[0])
 
             const thumbSize = Math.round(scale.markerPx * 0.72)
-            const stride    = Math.round(thumbSize * 0.55)
-            const clusterW  = thumbSize + stride * (previewPhotos.length - 1) + Math.round(badgePx * 0.6)
+            const clStride  = Math.round(thumbSize * 0.55)
+            const clusterW  = thumbSize + clStride * (previewPhotos.length - 1) + Math.round(badgePx * 0.6)
 
             return (
               <Marker
@@ -191,7 +193,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
                     <div
                       key={photo.id}
                       className="absolute rounded-full border-2 border-white shadow-md overflow-hidden"
-                      style={{ width: thumbSize, height: thumbSize, left: i * stride, zIndex: previewPhotos.length - i }}
+                      style={{ width: thumbSize, height: thumbSize, left: i * clStride, zIndex: previewPhotos.length - i }}
                     >
                       <img src={thumbSrc(photo)} alt="" className="w-full h-full object-cover" />
                     </div>
@@ -207,8 +209,12 @@ export default function MapView({ photos, trips }: MapViewProps) {
             )
           }
 
-          // ── Individual location marker ───────────────────────────────────
+          // ── Individual location marker ────────────────────────────────────
           const group = (props as PointProps).group
+          const stackCount = Math.min(group.photos.length, 3)
+          const markerW = group.photos.length === 1
+            ? scale.markerPx
+            : scale.markerPx + stride * (stackCount - 1)
 
           return (
             <Marker
@@ -221,29 +227,46 @@ export default function MapView({ photos, trips }: MapViewProps) {
                 selectGroup(group)
               }}
             >
-              <div className="photo-marker group relative" style={{ width: scale.markerPx }}>
-                <div
-                  className="rounded-full border-2 border-white shadow-md overflow-hidden
-                             ring-2 ring-transparent group-hover:ring-primary-400 transition-all"
-                  style={{ width: scale.markerPx, height: scale.markerPx }}
-                >
-                  <img
-                    src={thumbSrc(group.photos[0])}
-                    alt={group.photos[0].title || ''}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                {group.photos.length > 1 && (
+              <div className="photo-marker group relative cursor-pointer" style={{ width: markerW }}>
+                {/* Stack all photos (up to 3) */}
+                {group.photos.slice(0, 3).map((photo, i) => (
                   <div
-                    className="absolute -top-1 -right-1 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white"
-                    style={{ width: badgePx, height: badgePx, fontSize: Math.round(badgePx * 0.55) }}
+                    key={photo.id}
+                    className="absolute rounded-full border-2 border-white shadow-md overflow-hidden
+                               ring-2 ring-transparent group-hover:ring-primary-400 transition-all"
+                    style={{
+                      width: scale.markerPx,
+                      height: scale.markerPx,
+                      left: i * stride,
+                      zIndex: stackCount - i,
+                    }}
+                  >
+                    <img src={thumbSrc(photo)} alt={photo.title || ''} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+
+                {/* Count badge when more than 3 */}
+                {group.photos.length > 3 && (
+                  <div
+                    className="absolute -top-1 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white"
+                    style={{ width: badgePx, height: badgePx, fontSize: Math.round(badgePx * 0.55), right: 0, zIndex: 20 }}
                   >
                     {group.photos.length}
                   </div>
                 )}
+
+                {/* Spacer to give the marker its natural height so anchor="bottom" works */}
+                <div style={{ height: scale.markerPx }} />
+
+                {/* Pin tail, centered under the first photo */}
                 <div
-                  className="absolute left-1/2 -translate-x-1/2 bg-white border border-stone-300 rotate-45 shadow-sm"
-                  style={{ width: dotPx, height: dotPx, bottom: -Math.round(dotPx * 0.5) }}
+                  className="absolute bg-white border border-stone-300 rotate-45 shadow-sm"
+                  style={{
+                    width: dotPx,
+                    height: dotPx,
+                    bottom: -Math.round(dotPx * 0.5),
+                    left: Math.round(scale.markerPx / 2) - Math.round(dotPx / 2),
+                  }}
                 />
               </div>
             </Marker>
@@ -278,29 +301,27 @@ export default function MapView({ photos, trips }: MapViewProps) {
         ))}
       </div>
 
-      {/* 照片详情弹窗（全屏遮罩 Modal） */}
+      {/* 照片详情卡片（无遮罩，浮在地图上方） */}
       {selectedGroup && selectedPhoto && (
-        <div
-          className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
-          onClick={closeModal}
-        >
+        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
           <div
-            className="relative bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full max-w-xl max-h-[90vh]"
+            className="pointer-events-auto bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col mx-4 w-full max-w-lg"
+            style={{ maxHeight: '88vh' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 图片区 */}
-            <div className="relative flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">
+            <div className="relative bg-stone-100 flex items-center justify-center overflow-hidden">
               <img
                 src={fullSrc(selectedPhoto)}
                 alt={selectedPhoto.title || ''}
                 className="block"
-                style={{ maxWidth: '100%', maxHeight: '75vh', width: 'auto', height: 'auto', objectFit: 'contain' }}
+                style={{ maxWidth: '100%', maxHeight: '72vh', width: 'auto', height: 'auto' }}
               />
 
               {/* 关闭 */}
               <button
                 onClick={closeModal}
-                className="absolute top-3 right-3 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -311,7 +332,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
                   {groupIdx > 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i - 1) }}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
                     >
                       <ChevronLeft size={20} />
                     </button>
@@ -319,12 +340,12 @@ export default function MapView({ photos, trips }: MapViewProps) {
                   {groupIdx < selectedGroup.photos.length - 1 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i + 1) }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
                     >
                       <ChevronRight size={20} />
                     </button>
                   )}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-medium">
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm font-medium">
                     {groupIdx + 1} / {selectedGroup.photos.length}
                   </div>
                 </>
