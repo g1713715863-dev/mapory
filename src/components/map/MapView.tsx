@@ -28,14 +28,16 @@ export default function MapView({ photos, trips }: MapViewProps) {
     const map = mapRef.current?.getMap()
     if (!map) return
 
-    // 切换所有标注图层为中文优先
-    const layers = ['country-label', 'state-label', 'settlement-label',
-                    'settlement-subdivision-label', 'natural-point-label']
-    for (const id of layers) {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, 'text-field',
-          ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']])
-      }
+    // 遍历所有 symbol 图层，将含 text-field 的图层切换为中文优先
+    // （按图层名指定容易遗漏 Mapbox 样式中的隐藏图层，全量遍历更可靠）
+    const zhField = ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']]
+    for (const layer of map.getStyle().layers) {
+      if (layer.type !== 'symbol') continue
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!(layer as any).layout?.['text-field']) continue
+      try {
+        map.setLayoutProperty(layer.id, 'text-field', zhField)
+      } catch { /* 跳过不支持该表达式的图层 */ }
     }
 
     // 从 country-label 中隐藏台湾，改为省级显示
