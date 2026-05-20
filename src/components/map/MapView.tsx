@@ -36,13 +36,13 @@ export default function MapView({ photos, trips }: MapViewProps) {
 
   // 按精确坐标聚合，同一位置的多张照片合为一组
   const photoGroups = useMemo<PhotoGroup[]>(() => {
-    const map = new Map<string, PhotoGroup>()
+    const groups: Record<string, PhotoGroup> = {}
     for (const p of visiblePhotos) {
       const key = `${p.lat},${p.lng}`
-      if (!map.has(key)) map.set(key, { lat: p.lat!, lng: p.lng!, photos: [] })
-      map.get(key)!.photos.push(p)
+      if (!groups[key]) groups[key] = { lat: p.lat!, lng: p.lng!, photos: [] }
+      groups[key].photos.push(p)
     }
-    return [...map.values()]
+    return Object.values(groups)
   }, [visiblePhotos])
 
   const selectedPhoto = selectedGroup?.photos[groupIdx] ?? null
