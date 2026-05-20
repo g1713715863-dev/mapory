@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useRef, useMemo, useCallback } from 'react'
-import Map, { Marker, Popup, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
+import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
 import Supercluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Photo, Trip } from '@/types'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 
 interface MapViewProps {
   photos: Photo[]
@@ -16,12 +16,11 @@ type PhotoGroup = { lat: number; lng: number; photos: Photo[] }
 type PointProps = { group: PhotoGroup; photoCount: number }
 type ClusterProps = { photoCount: number }
 
-// 根据 zoom 返回标记大小和弹窗宽度
 function getScale(zoom: number) {
-  if (zoom < 5)  return { markerPx: 72, popupPx: 420 }
-  if (zoom < 8)  return { markerPx: 60, popupPx: 380 }
-  if (zoom < 11) return { markerPx: 52, popupPx: 340 }
-  return             { markerPx: 44, popupPx: 300 }
+  if (zoom < 5)  return { markerPx: 92 }
+  if (zoom < 8)  return { markerPx: 78 }
+  if (zoom < 11) return { markerPx: 66 }
+  return             { markerPx: 56 }
 }
 
 function thumbSrc(photo: Photo) {
@@ -59,7 +58,6 @@ export default function MapView({ photos, trips }: MapViewProps) {
     return Object.values(groups)
   }, [visiblePhotos])
 
-  // supercluster: groups nearby photo locations into clusters
   const supercluster = useMemo(() => {
     const sc = new Supercluster<PointProps, ClusterProps>({
       radius: 60,
@@ -89,7 +87,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
     setGroupIdx(0)
   }
 
-  function closePopup() {
+  function closeModal() {
     setSelectedGroup(null)
     setGroupIdx(0)
   }
@@ -151,7 +149,6 @@ export default function MapView({ photos, trips }: MapViewProps) {
         initialViewState={{ longitude: 116.4, latitude: 39.9, zoom: 4 }}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/light-v11"
-        onClick={closePopup}
         onLoad={handleMapLoad}
         onMove={(e) => {
           const z = Math.floor(e.viewState.zoom)
@@ -194,26 +191,14 @@ export default function MapView({ photos, trips }: MapViewProps) {
                     <div
                       key={photo.id}
                       className="absolute rounded-full border-2 border-white shadow-md overflow-hidden"
-                      style={{
-                        width: thumbSize,
-                        height: thumbSize,
-                        left: i * stride,
-                        zIndex: previewPhotos.length - i,
-                      }}
+                      style={{ width: thumbSize, height: thumbSize, left: i * stride, zIndex: previewPhotos.length - i }}
                     >
                       <img src={thumbSrc(photo)} alt="" className="w-full h-full object-cover" />
                     </div>
                   ))}
-                  {/* 照片总数角标 */}
                   <div
                     className="absolute -top-1.5 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white shadow"
-                    style={{
-                      width: badgePx + 6,
-                      height: badgePx + 6,
-                      fontSize: Math.round((badgePx + 6) * 0.48),
-                      right: 0,
-                      zIndex: 20,
-                    }}
+                    style={{ width: badgePx + 6, height: badgePx + 6, fontSize: Math.round((badgePx + 6) * 0.48), right: 0, zIndex: 20 }}
                   >
                     {photoCount}
                   </div>
@@ -264,81 +249,6 @@ export default function MapView({ photos, trips }: MapViewProps) {
             </Marker>
           )
         })}
-
-        {selectedGroup && selectedPhoto && (
-          <Popup
-            longitude={selectedGroup.lng}
-            latitude={selectedGroup.lat}
-            anchor="top"
-            closeButton={false}
-            className="photo-popup"
-            maxWidth={`${scale.popupPx + 24}px`}
-            onClose={closePopup}
-          >
-            <div
-              className="bg-white rounded-2xl overflow-hidden shadow-xl"
-              style={{ width: scale.popupPx }}
-            >
-              {/* 图片区：保留原始长宽比 */}
-              <div className="relative">
-                <img
-                  src={fullSrc(selectedPhoto)}
-                  alt={selectedPhoto.title || ''}
-                  className="block mx-auto"
-                  style={{ maxWidth: '100%', maxHeight: Math.round(scale.popupPx * 0.85), width: 'auto', height: 'auto' }}
-                />
-                <button
-                  onClick={closePopup}
-                  className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-
-                {/* 同位置多张翻页 */}
-                {selectedGroup.photos.length > 1 && (
-                  <>
-                    {groupIdx > 0 && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i - 1) }}
-                        className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
-                      >
-                        <ChevronLeft size={16} />
-                      </button>
-                    )}
-                    {groupIdx < selectedGroup.photos.length - 1 && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i + 1) }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    )}
-                    <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full bg-black/50 text-white text-xs font-medium">
-                      {groupIdx + 1} / {selectedGroup.photos.length}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* 文字信息区 */}
-              <div className="px-4 py-3 space-y-1">
-                {selectedPhoto.title && (
-                  <p className="font-semibold text-stone-800 text-base leading-snug">{selectedPhoto.title}</p>
-                )}
-                {selectedPhoto.location_name && (
-                  <p className="text-sm text-stone-500 flex items-center gap-1">
-                    📍 <span className="truncate">{selectedPhoto.location_name}</span>
-                  </p>
-                )}
-                {selectedPhoto.taken_at && (
-                  <p className="text-sm text-stone-400">
-                    {new Date(selectedPhoto.taken_at).toLocaleDateString('zh-CN')}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Popup>
-        )}
       </Map>
 
       {/* 行程筛选器 */}
@@ -367,6 +277,80 @@ export default function MapView({ photos, trips }: MapViewProps) {
           </button>
         ))}
       </div>
+
+      {/* 照片详情弹窗（全屏遮罩 Modal） */}
+      {selectedGroup && selectedPhoto && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+          onClick={closeModal}
+        >
+          <div
+            className="relative bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full max-w-xl max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 图片区 */}
+            <div className="relative flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">
+              <img
+                src={fullSrc(selectedPhoto)}
+                alt={selectedPhoto.title || ''}
+                className="block"
+                style={{ maxWidth: '100%', maxHeight: '75vh', width: 'auto', height: 'auto', objectFit: 'contain' }}
+              />
+
+              {/* 关闭 */}
+              <button
+                onClick={closeModal}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              {/* 翻页 */}
+              {selectedGroup.photos.length > 1 && (
+                <>
+                  {groupIdx > 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i - 1) }}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                  )}
+                  {groupIdx < selectedGroup.photos.length - 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setGroupIdx((i) => i + 1) }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  )}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 text-white text-sm font-medium">
+                    {groupIdx + 1} / {selectedGroup.photos.length}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 文字信息区 */}
+            <div className="shrink-0 px-5 py-4 space-y-1.5 border-t border-stone-100">
+              {selectedPhoto.title && (
+                <p className="font-semibold text-stone-800 text-lg leading-snug">{selectedPhoto.title}</p>
+              )}
+              {selectedPhoto.location_name && (
+                <p className="text-sm text-stone-500 flex items-center gap-1.5">
+                  <MapPin size={13} className="text-primary-500 shrink-0" />
+                  <span className="truncate">{selectedPhoto.location_name}</span>
+                </p>
+              )}
+              {selectedPhoto.taken_at && (
+                <p className="text-sm text-stone-400">
+                  {new Date(selectedPhoto.taken_at).toLocaleDateString('zh-CN')}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
