@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader } from 'lucide-react'
+import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader, Pencil, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
@@ -13,6 +13,7 @@ const nav = [
 ]
 
 interface AuthUser {
+  id: string
   displayName: string
   isAdmin: boolean
   avatarUrl: string | null
@@ -24,21 +25,28 @@ export default function Navbar() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [savingName, setSavingName] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
 
     const loadProfile = async (uid: string) => {
+      // select('*') is resilient: won't error if avatar_url column doesn't exist yet
       const { data } = await supabase
         .from('user_profiles')
-        .select('display_name, is_admin, avatar_url')
+        .select('*')
         .eq('id', uid)
         .single()
+      const row = data as Record<string, unknown> | null
       setAuthUser({
-        displayName: data?.display_name ?? '用户',
-        isAdmin: data?.is_admin ?? false,
-        avatarUrl: (data as { avatar_url?: string | null })?.avatar_url ?? null,
+        id: uid,
+        displayName: (row?.display_name as string) ?? '用户',
+        isAdmin: (row?.is_admin as boolean) ?? false,
+        avatarUrl: (row?.avatar_url as string) ?? null,
       })
     }
 
@@ -59,11 +67,16 @@ export default function Navbar() {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false)
+        setEditingName(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
+
+  useEffect(() => {
+    if (editingName) nameInputRef.current?.focus()
+  }, [editingName])
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -90,14 +103,42 @@ export default function Navbar() {
     }
   }
 
+  function startEditName() {
+    setNameInput(authUser?.displayName ?? '')
+    setEditingName(true)
+  }
+
+  function cancelEditName() {
+    setEditingName(false)
+    setNameInput('')
+  }
+
+  async function saveDisplayName() {
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === authUser?.displayName) {
+      cancelEditName()
+      return
+    }
+    setSavingName(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ display_name: trimmed })
+      .eq('id', authUser!.id)
+    if (!error) {
+      setAuthUser((prev) => prev ? { ...prev, displayName: trimmed } : prev)
+    }
+    setSavingName(false)
+    setEditingName(false)
+  }
+
   const initials = authUser?.displayName?.slice(0, 1).toUpperCase() ?? ''
 
-  function AvatarCircle({ size }: { size: 'sm' | 'md' }) {
-    const px = size === 'sm' ? 'w-8 h-8 text-sm' : 'w-12 h-12 text-base'
+  function AvatarImg({ className }: { className: string }) {
     return authUser?.avatarUrl ? (
-      <img src={authUser.avatarUrl} alt="" className={`${px} rounded-full object-cover`} />
+      <img src={authUser.avatarUrl} alt="" className={`${className} rounded-full object-cover`} />
     ) : (
-      <div className={`${px} rounded-full bg-primary-500 text-white flex items-center justify-center font-semibold select-none`}>
+      <div className={`${className} rounded-full bg-primary-500 text-white flex items-center justify-center font-semibold select-none`}>
         {initials}
       </div>
     )
@@ -134,8 +175,8 @@ export default function Navbar() {
               onClick={() => setMenuOpen((v) => !v)}
               className="flex items-center gap-1.5 group"
             >
-              <div className="group-hover:opacity-90 transition-opacity">
-                <AvatarCircle size="sm" />
+              <div className="w-8 h-8 group-hover:opacity-90 transition-opacity overflow-hidden rounded-full">
+                <AvatarImg className="w-8 h-8" />
               </div>
               <ChevronDown
                 size={14}
@@ -144,12 +185,15 @@ export default function Navbar() {
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-11 bg-white border border-stone-100 rounded-2xl shadow-xl py-2 min-w-[200px] z-50">
-                {/* 头像 + 用户信息 */}
+              <div className="absolute right-0 top-11 bg-white border border-stone-100 rounded-2xl shadow-xl py-2 min-w-[220px] z-50">
+
+                {/* 头像 + 昵称 */}
                 <div className="px-4 py-3 border-b border-stone-100 mb-1 flex items-center gap-3">
-                  {/* 可点击更换头像 */}
+                  {/* 头像（悬停可上传） */}
                   <div className="relative group/avatar shrink-0">
-                    <AvatarCircle size="md" />
+                    <div className="w-12 h-12 overflow-hidden rounded-full">
+                      <AvatarImg className="w-12 h-12" />
+                    </div>
                     <label className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center bg-black/0 hover:bg-black/40 transition-colors">
                       {uploading ? (
                         <Loader size={15} className="text-white animate-spin" />
@@ -165,8 +209,44 @@ export default function Navbar() {
                       />
                     </label>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-stone-800 truncate">{authUser.displayName}</p>
+
+                  {/* 昵称（可编辑） */}
+                  <div className="min-w-0 flex-1">
+                    {editingName ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          ref={nameInputRef}
+                          value={nameInput}
+                          onChange={(e) => setNameInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveDisplayName()
+                            if (e.key === 'Escape') cancelEditName()
+                          }}
+                          className="text-sm font-semibold text-stone-800 border-b border-primary-400 outline-none bg-transparent w-full"
+                          maxLength={20}
+                        />
+                        <button
+                          onClick={saveDisplayName}
+                          disabled={savingName}
+                          className="shrink-0 text-primary-500 hover:text-primary-600 disabled:opacity-40"
+                        >
+                          {savingName ? <Loader size={13} className="animate-spin" /> : <Check size={13} />}
+                        </button>
+                        <button onClick={cancelEditName} className="shrink-0 text-stone-400 hover:text-stone-600">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 group/name">
+                        <p className="text-sm font-semibold text-stone-800 truncate">{authUser.displayName}</p>
+                        <button
+                          onClick={startEditName}
+                          className="shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity text-stone-400 hover:text-stone-600"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                      </div>
+                    )}
                     {authUser.isAdmin && (
                       <span className="inline-block text-[11px] text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full mt-0.5">
                         管理员
@@ -230,13 +310,7 @@ export default function Navbar() {
             className="flex flex-col items-center gap-0.5 px-6 py-1 rounded-xl text-stone-400 hover:text-stone-700 transition-colors"
           >
             <div className="w-6 h-6 rounded-full overflow-hidden">
-              {authUser.avatarUrl ? (
-                <img src={authUser.avatarUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-primary-500 text-white flex items-center justify-center text-[11px] font-semibold">
-                  {initials}
-                </div>
-              )}
+              <AvatarImg className="w-6 h-6" />
             </div>
             <span className="text-[10px] font-medium">退出</span>
           </button>
