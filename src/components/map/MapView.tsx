@@ -43,6 +43,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
   const [projection, setProjection] = useState<'globe' | 'mercator'>('globe')
   const [mapLoaded, setMapLoaded] = useState(false)
   const mapRef = useRef<MapRef>(null)
+  const clusterClickTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     if (!mapLoaded) return
@@ -193,8 +194,21 @@ export default function MapView({ photos, trips }: MapViewProps) {
                 anchor="center"
                 onClick={(e) => {
                   e.originalEvent.stopPropagation()
-                  const expansionZoom = supercluster.getClusterExpansionZoom(clusterId)
-                  mapRef.current?.flyTo({ center: [lng, lat], zoom: Math.min(expansionZoom, 16), duration: 600 })
+                  const existing = clusterClickTimers.current.get(clusterId)
+                  if (existing) {
+                    clearTimeout(existing)
+                    clusterClickTimers.current.delete(clusterId)
+                    const expansionZoom = supercluster.getClusterExpansionZoom(clusterId)
+                    mapRef.current?.flyTo({ center: [lng, lat], zoom: Math.min(expansionZoom, 16), duration: 600 })
+                  } else {
+                    const timer = setTimeout(() => {
+                      clusterClickTimers.current.delete(clusterId)
+                      const allLeaves = supercluster.getLeaves(clusterId, Infinity)
+                      const photos = allLeaves.flatMap((l) => (l.properties as PointProps).group.photos)
+                      selectGroup({ lat, lng, photos })
+                    }, 250)
+                    clusterClickTimers.current.set(clusterId, timer)
+                  }
                 }}
               >
                 <div className="relative cursor-pointer" style={{ width: clusterW, height: thumbSize }}>
