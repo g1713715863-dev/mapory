@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader, Pencil, Check, X } from 'lucide-react'
+import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader, Pencil, Check, X, Route, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
@@ -256,14 +256,32 @@ export default function Navbar() {
                 </div>
 
                 {authUser.isAdmin && (
-                  <Link
-                    href="/admin/upload"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
-                  >
-                    <Upload size={14} />
-                    上传照片
-                  </Link>
+                  <>
+                    <Link
+                      href="/admin/upload"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                    >
+                      <Upload size={14} />
+                      上传照片
+                    </Link>
+                    <Link
+                      href="/admin/trips"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                    >
+                      <Route size={14} />
+                      管理行程
+                    </Link>
+                    <Link
+                      href="/admin/comments"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2 text-sm text-stone-600 hover:bg-stone-50 hover:text-stone-900 transition-colors"
+                    >
+                      <MessageSquare size={14} />
+                      评论管理
+                    </Link>
+                  </>
                 )}
                 <button
                   onClick={handleSignOut}
