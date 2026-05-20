@@ -27,6 +27,8 @@ export default function MapView({ photos, trips }: MapViewProps) {
   function handleMapLoad() {
     const map = mapRef.current?.getMap()
     if (!map) return
+
+    // 切换所有标注图层为中文优先
     const layers = ['country-label', 'state-label', 'settlement-label',
                     'settlement-subdivision-label', 'natural-point-label']
     for (const id of layers) {
@@ -34,6 +36,54 @@ export default function MapView({ photos, trips }: MapViewProps) {
         map.setLayoutProperty(id, 'text-field',
           ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']])
       }
+    }
+
+    // 从 country-label 中隐藏台湾，改为省级显示
+    if (map.getLayer('country-label')) {
+      const existing = map.getFilter('country-label')
+      map.setFilter('country-label', [
+        'all',
+        ...(existing ? [existing] : []),
+        ['!=', ['get', 'name_en'], 'Taiwan'],
+      ])
+    }
+
+    // 在 state-label 等级添加"台湾省"自定义标签
+    if (!map.getSource('taiwan-province')) {
+      map.addSource('taiwan-province', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [121.0, 23.5] },
+          properties: {},
+        },
+      })
+      map.addLayer({
+        id: 'taiwan-province-label',
+        type: 'symbol',
+        source: 'taiwan-province',
+        layout: {
+          'text-field': '台湾省',
+          'text-font': ['DIN Pro Regular', 'Arial Unicode MS Regular'],
+          'text-size': 12,
+          'text-letter-spacing': 0.1,
+        },
+        paint: {
+          'text-color': '#666',
+          'text-halo-color': '#fff',
+          'text-halo-width': 1,
+        },
+      }, 'state-label')
+    }
+
+    // 台湾下辖城市字体降级（symbolrank 因 Mapbox 将台湾视为"国家"而偏高）
+    if (map.getLayer('settlement-label')) {
+      map.setLayoutProperty('settlement-label', 'text-size', [
+        'interpolate', ['linear'], ['zoom'],
+        4,  ['case', ['==', ['get', 'iso_3166_1'], 'TW'], 8,  10],
+        8,  ['case', ['==', ['get', 'iso_3166_1'], 'TW'], 11, 14],
+        14, ['case', ['==', ['get', 'iso_3166_1'], 'TW'], 13, 16],
+      ])
     }
   }
 

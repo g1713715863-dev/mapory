@@ -28,16 +28,9 @@ async function reverseGeocode(lng: number, lat: number): Promise<string> {
 }
 
 async function forwardGeocode(query: string): Promise<SearchResult[]> {
-  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  const res = await fetch(
-    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&language=zh&limit=5`
-  )
-  const data = await res.json()
-  return (data.features ?? []).map((f: { id: string; place_name: string; center: [number, number] }) => ({
-    id: f.id,
-    place_name: f.place_name,
-    center: f.center,
-  }))
+  const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
+  if (!res.ok) return []
+  return res.json()
 }
 
 export default function LocationPickerModal({
