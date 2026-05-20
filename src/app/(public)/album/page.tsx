@@ -2,9 +2,17 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import TripGrid from '@/components/album/TripGrid'
+import SortToggle from '@/components/album/SortToggle'
 import type { Photo, Trip } from '@/types'
 
-export default async function AlbumPage() {
+type Props = {
+  searchParams: Promise<{ order?: string }>
+}
+
+export default async function AlbumPage({ searchParams }: Props) {
+  const { order: orderParam } = await searchParams
+  const order: 'asc' | 'desc' = orderParam === 'asc' ? 'asc' : 'desc'
+
   const supabase = await createClient()
 
   const [{ data: trips }, { data: photos }, { data: { user: authUser } }] = await Promise.all([
@@ -29,18 +37,21 @@ export default async function AlbumPage() {
     return acc
   }, {})
 
-  // Sort photos within each trip chronologically
+  // Sort photos within each trip by taken_at, direction based on order param
   for (const tripId in photosByTrip) {
     photosByTrip[tripId].sort((a, b) => {
       const da = a.taken_at ?? a.created_at
       const db = b.taken_at ?? b.created_at
-      return da < db ? -1 : da > db ? 1 : 0
+      const cmp = da < db ? -1 : da > db ? 1 : 0
+      return order === 'asc' ? cmp : -cmp
     })
   }
 
-  const tripsWithPhotos = ((trips as Trip[]) ?? []).filter((t) => (photosByTrip[t.id]?.length ?? 0) > 0)
+  const allTripsWithPhotos = ((trips as Trip[]) ?? []).filter((t) => (photosByTrip[t.id]?.length ?? 0) > 0)
+  // Trips from Supabase are newest-first; for asc we reverse
+  const tripsWithPhotos = order === 'asc' ? [...allTripsWithPhotos].reverse() : allTripsWithPhotos
 
-  // Group trips by year for timeline
+  // Group trips by year
   const tripGroups: Array<{ year: string; trips: Trip[] }> = []
   for (const trip of tripsWithPhotos) {
     const year = trip.start_date
@@ -62,15 +73,18 @@ export default async function AlbumPage() {
             {tripsWithPhotos.length} 次旅行，{totalPhotos} 张照片
           </p>
         </div>
-        {isAdmin && (
-          <Link
-            href="/admin/upload"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
-          >
-            <Plus size={16} />
-            上传照片
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <SortToggle order={order} />
+          {isAdmin && (
+            <Link
+              href="/admin/upload"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors"
+            >
+              <Plus size={16} />
+              上传照片
+            </Link>
+          )}
+        </div>
       </div>
 
       {tripsWithPhotos.length === 0 ? (
@@ -106,11 +120,9 @@ export default async function AlbumPage() {
 
               {yearTrips.map((trip) => (
                 <div key={trip.id} className="flex gap-5 mb-14">
-                  {/* Trip dot */}
                   <div className="w-9 shrink-0 flex justify-center pt-2">
                     <div className="w-3 h-3 rounded-full bg-white border-2 border-primary-400 shadow-sm z-10" />
                   </div>
-                  {/* Trip content */}
                   <div className="flex-1 min-w-0">
                     <TripGrid
                       trip={trip}
