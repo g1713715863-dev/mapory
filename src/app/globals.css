@@ -70,6 +70,17 @@ body {
 ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
 
+/* Mapbox 水印缩小 */
+.mapboxgl-ctrl-logo {
+  transform: scale(0.6) !important;
+  transform-origin: bottom left !important;
+  opacity: 0.45 !important;
+}
+.mapboxgl-ctrl-attrib {
+  font-size: 9px !important;
+  opacity: 0.45 !important;
+}
+
 /* Mapbox marker 气泡 */
 .photo-marker {
   cursor: pointer;

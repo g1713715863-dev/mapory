@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useMemo, useCallback } from 'react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import Map, { Marker, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
 import Supercluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
@@ -40,7 +40,15 @@ export default function MapView({ photos, trips }: MapViewProps) {
   const [activeTrip, setActiveTrip] = useState<string>('all')
   const [zoom, setZoom] = useState(4)
   const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85])
+  const [projection, setProjection] = useState<'globe' | 'mercator'>('globe')
+  const [mapLoaded, setMapLoaded] = useState(false)
   const mapRef = useRef<MapRef>(null)
+
+  useEffect(() => {
+    if (!mapLoaded) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(mapRef.current?.getMap() as any)?.setProjection(projection)
+  }, [projection, mapLoaded])
 
   const scale = getScale(Math.floor(zoom))
 
@@ -106,6 +114,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
   }, [])
 
   function handleMapLoad() {
+    setMapLoaded(true)
     syncMapState()
     const map = mapRef.current?.getMap()
     if (!map) return
@@ -299,6 +308,22 @@ export default function MapView({ photos, trips }: MapViewProps) {
             {trip.name}
           </button>
         ))}
+      </div>
+
+      {/* 球体 / 平面 切换 */}
+      <div className="absolute bottom-8 left-4 z-10 flex rounded-full overflow-hidden shadow-sm border border-stone-200 bg-white text-xs font-medium">
+        <button
+          onClick={() => setProjection('globe')}
+          className={`px-3 py-1.5 transition-colors ${projection === 'globe' ? 'bg-primary-500 text-white' : 'text-stone-600 hover:bg-stone-50'}`}
+        >
+          球体
+        </button>
+        <button
+          onClick={() => setProjection('mercator')}
+          className={`px-3 py-1.5 transition-colors ${projection === 'mercator' ? 'bg-primary-500 text-white' : 'text-stone-600 hover:bg-stone-50'}`}
+        >
+          平面
+        </button>
       </div>
 
       {/* 照片详情卡片（无遮罩，浮在地图上方） */}
