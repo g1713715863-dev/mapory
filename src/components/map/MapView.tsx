@@ -245,8 +245,8 @@ export default function MapView({ photos, trips }: MapViewProps) {
                   </div>
                 ))}
 
-                {/* Count badge when more than 3 */}
-                {group.photos.length > 3 && (
+                {/* Count badge when more than 1 */}
+                {group.photos.length > 1 && (
                   <div
                     className="absolute -top-1 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white"
                     style={{ width: badgePx, height: badgePx, fontSize: Math.round(badgePx * 0.55), right: 0, zIndex: 20 }}
