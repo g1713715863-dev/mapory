@@ -48,34 +48,6 @@ export default function MapView({ photos, trips }: MapViewProps) {
       ])
     }
 
-    // 在 state-label 等级添加"台湾省"自定义标签
-    if (!map.getSource('taiwan-province')) {
-      map.addSource('taiwan-province', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [121.0, 23.5] },
-          properties: {},
-        },
-      })
-      map.addLayer({
-        id: 'taiwan-province-label',
-        type: 'symbol',
-        source: 'taiwan-province',
-        layout: {
-          'text-field': '台湾省',
-          'text-font': ['DIN Pro Regular', 'Arial Unicode MS Regular'],
-          'text-size': 12,
-          'text-letter-spacing': 0.1,
-        },
-        paint: {
-          'text-color': '#666',
-          'text-halo-color': '#fff',
-          'text-halo-width': 1,
-        },
-      }, 'state-label')
-    }
-
     // 台湾下辖城市字体降级（symbolrank 因 Mapbox 将台湾视为"国家"而偏高）
     if (map.getLayer('settlement-label')) {
       map.setLayoutProperty('settlement-label', 'text-size', [
