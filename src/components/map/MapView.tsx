@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useCallback } from 'react'
 import Map, { Marker, Popup, NavigationControl, type MapRef } from 'react-map-gl/mapbox'
+import Supercluster from 'supercluster'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Photo, Trip } from '@/types'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -12,10 +13,10 @@ interface MapViewProps {
 }
 
 type PhotoGroup = { lat: number; lng: number; photos: Photo[] }
+type PointProps = { group: PhotoGroup; photoCount: number }
+type ClusterProps = { photoCount: number }
 
 // 根据 zoom 返回标记大小和弹窗宽度
-// 缩小时（zoom 小）照片少、稀疏 → 标记和弹窗更大
-// 放大时（zoom 大）照片密集 → 标记和弹窗适当缩小
 function getScale(zoom: number) {
   if (zoom < 5)  return { markerPx: 72, popupPx: 420 }
   if (zoom < 8)  return { markerPx: 60, popupPx: 380 }
@@ -39,6 +40,7 @@ export default function MapView({ photos, trips }: MapViewProps) {
   const [groupIdx, setGroupIdx] = useState(0)
   const [activeTrip, setActiveTrip] = useState<string>('all')
   const [zoom, setZoom] = useState(4)
+  const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85])
   const mapRef = useRef<MapRef>(null)
 
   const scale = getScale(Math.floor(zoom))
@@ -57,6 +59,29 @@ export default function MapView({ photos, trips }: MapViewProps) {
     return Object.values(groups)
   }, [visiblePhotos])
 
+  // supercluster: groups nearby photo locations into clusters
+  const supercluster = useMemo(() => {
+    const sc = new Supercluster<PointProps, ClusterProps>({
+      radius: 60,
+      maxZoom: 16,
+      map: (props) => ({ photoCount: props.photoCount }),
+      reduce: (acc, props) => { acc.photoCount += props.photoCount },
+    })
+    sc.load(
+      photoGroups.map((group) => ({
+        type: 'Feature' as const,
+        properties: { group, photoCount: group.photos.length },
+        geometry: { type: 'Point' as const, coordinates: [group.lng, group.lat] },
+      }))
+    )
+    return sc
+  }, [photoGroups])
+
+  const clusters = useMemo(
+    () => supercluster.getClusters(bounds, Math.floor(zoom)),
+    [supercluster, bounds, zoom]
+  )
+
   const selectedPhoto = selectedGroup?.photos[groupIdx] ?? null
 
   function selectGroup(group: PhotoGroup) {
@@ -74,7 +99,16 @@ export default function MapView({ photos, trips }: MapViewProps) {
     setSelectedGroup(null)
   }
 
+  const syncMapState = useCallback(() => {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    const b = map.getBounds()
+    if (!b) return
+    setBounds([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()])
+  }, [])
+
   function handleMapLoad() {
+    syncMapState()
     const map = mapRef.current?.getMap()
     if (!map) return
 
@@ -122,53 +156,114 @@ export default function MapView({ photos, trips }: MapViewProps) {
         onMove={(e) => {
           const z = Math.floor(e.viewState.zoom)
           setZoom((prev) => (prev === z ? prev : z))
+          syncMapState()
         }}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
 
-        {photoGroups.map((group) => (
-          <Marker
-            key={`${group.lat},${group.lng}`}
-            longitude={group.lng}
-            latitude={group.lat}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation()
-              selectGroup(group)
-            }}
-          >
-            <div className="photo-marker group relative" style={{ width: scale.markerPx }}>
-              {/* 圆形照片缩略图 */}
-              <div
-                className="rounded-full border-2 border-white shadow-md overflow-hidden
-                           ring-2 ring-transparent group-hover:ring-primary-400 transition-all"
-                style={{ width: scale.markerPx, height: scale.markerPx }}
+        {clusters.map((cluster) => {
+          const [lng, lat] = cluster.geometry.coordinates
+          const props = cluster.properties
+
+          // ── Cluster marker ──────────────────────────────────────────────
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((props as any).cluster) {
+            const clusterId = (props as { cluster_id: number }).cluster_id
+            const photoCount = (props as unknown as ClusterProps & { cluster: true }).photoCount
+            const leaves = supercluster.getLeaves(clusterId, 3)
+            const previewPhotos = leaves.map((l) => (l.properties as PointProps).group.photos[0])
+
+            const thumbSize = Math.round(scale.markerPx * 0.72)
+            const stride    = Math.round(thumbSize * 0.55)
+            const clusterW  = thumbSize + stride * (previewPhotos.length - 1) + Math.round(badgePx * 0.6)
+
+            return (
+              <Marker
+                key={`cluster-${clusterId}`}
+                longitude={lng}
+                latitude={lat}
+                anchor="center"
+                onClick={(e) => {
+                  e.originalEvent.stopPropagation()
+                  const expansionZoom = supercluster.getClusterExpansionZoom(clusterId)
+                  mapRef.current?.flyTo({ center: [lng, lat], zoom: Math.min(expansionZoom, 16), duration: 600 })
+                }}
               >
-                <img
-                  src={thumbSrc(group.photos[0])}
-                  alt={group.photos[0].title || ''}
-                  className="w-full h-full object-cover"
+                <div className="relative cursor-pointer" style={{ width: clusterW, height: thumbSize }}>
+                  {previewPhotos.map((photo, i) => (
+                    <div
+                      key={photo.id}
+                      className="absolute rounded-full border-2 border-white shadow-md overflow-hidden"
+                      style={{
+                        width: thumbSize,
+                        height: thumbSize,
+                        left: i * stride,
+                        zIndex: previewPhotos.length - i,
+                      }}
+                    >
+                      <img src={thumbSrc(photo)} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                  {/* 照片总数角标 */}
+                  <div
+                    className="absolute -top-1.5 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white shadow"
+                    style={{
+                      width: badgePx + 6,
+                      height: badgePx + 6,
+                      fontSize: Math.round((badgePx + 6) * 0.48),
+                      right: 0,
+                      zIndex: 20,
+                    }}
+                  >
+                    {photoCount}
+                  </div>
+                </div>
+              </Marker>
+            )
+          }
+
+          // ── Individual location marker ───────────────────────────────────
+          const group = (props as PointProps).group
+
+          return (
+            <Marker
+              key={`${group.lat},${group.lng}`}
+              longitude={group.lng}
+              latitude={group.lat}
+              anchor="bottom"
+              onClick={(e) => {
+                e.originalEvent.stopPropagation()
+                selectGroup(group)
+              }}
+            >
+              <div className="photo-marker group relative" style={{ width: scale.markerPx }}>
+                <div
+                  className="rounded-full border-2 border-white shadow-md overflow-hidden
+                             ring-2 ring-transparent group-hover:ring-primary-400 transition-all"
+                  style={{ width: scale.markerPx, height: scale.markerPx }}
+                >
+                  <img
+                    src={thumbSrc(group.photos[0])}
+                    alt={group.photos[0].title || ''}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {group.photos.length > 1 && (
+                  <div
+                    className="absolute -top-1 -right-1 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white"
+                    style={{ width: badgePx, height: badgePx, fontSize: Math.round(badgePx * 0.55) }}
+                  >
+                    {group.photos.length}
+                  </div>
+                )}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 bg-white border border-stone-300 rotate-45 shadow-sm"
+                  style={{ width: dotPx, height: dotPx, bottom: -Math.round(dotPx * 0.5) }}
                 />
               </div>
-
-              {/* 多张照片数量徽章 */}
-              {group.photos.length > 1 && (
-                <div
-                  className="absolute -top-1 -right-1 rounded-full bg-primary-500 text-white font-bold flex items-center justify-center border-2 border-white"
-                  style={{ width: badgePx, height: badgePx, fontSize: Math.round(badgePx * 0.55) }}
-                >
-                  {group.photos.length}
-                </div>
-              )}
-
-              {/* 底部小三角针尖 */}
-              <div
-                className="absolute left-1/2 -translate-x-1/2 bg-white border border-stone-300 rotate-45 shadow-sm"
-                style={{ width: dotPx, height: dotPx, bottom: -Math.round(dotPx * 0.5) }}
-              />
-            </div>
-          </Marker>
-        ))}
+            </Marker>
+          )
+        })}
 
         {selectedGroup && selectedPhoto && (
           <Popup
