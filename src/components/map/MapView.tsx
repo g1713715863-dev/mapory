@@ -30,7 +30,8 @@ export default function MapView({ photos, trips }: MapViewProps) {
 
     // 遍历所有 symbol 图层，将含 text-field 的图层切换为中文优先
     // （按图层名指定容易遗漏 Mapbox 样式中的隐藏图层，全量遍历更可靠）
-    const zhField = ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const zhField: any = ['coalesce', ['get', 'name_zh-Hans'], ['get', 'name']]
     for (const layer of map.getStyle().layers) {
       if (layer.type !== 'symbol') continue
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
