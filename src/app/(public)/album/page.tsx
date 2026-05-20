@@ -51,12 +51,18 @@ export default async function AlbumPage({ searchParams }: Props) {
   // Trips from Supabase are newest-first; for asc we reverse
   const tripsWithPhotos = order === 'asc' ? [...allTripsWithPhotos].reverse() : allTripsWithPhotos
 
+  // Resolve year for a trip: prefer start_date, fall back to earliest photo taken_at
+  function tripYear(trip: Trip): string {
+    if (trip.start_date) return new Date(trip.start_date).getFullYear().toString()
+    const dates = (photosByTrip[trip.id] ?? []).map((p) => p.taken_at).filter(Boolean) as string[]
+    if (dates.length > 0) return new Date(dates.sort()[0]).getFullYear().toString()
+    return '未知年份'
+  }
+
   // Group trips by year
   const tripGroups: Array<{ year: string; trips: Trip[] }> = []
   for (const trip of tripsWithPhotos) {
-    const year = trip.start_date
-      ? new Date(trip.start_date).getFullYear().toString()
-      : '未知年份'
+    const year = tripYear(trip)
     const last = tripGroups[tripGroups.length - 1]
     if (last?.year === year) last.trips.push(trip)
     else tripGroups.push({ year, trips: [trip] })
