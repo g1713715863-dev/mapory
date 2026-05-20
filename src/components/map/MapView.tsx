@@ -189,8 +189,8 @@ export default function MapView({ photos, trips }: MapViewProps) {
                 <img
                   src={fullSrc(selectedPhoto)}
                   alt={selectedPhoto.title || ''}
-                  className="w-full h-auto block"
-                  style={{ maxHeight: Math.round(scale.popupPx * 0.85) }}
+                  className="block mx-auto"
+                  style={{ maxWidth: '100%', maxHeight: Math.round(scale.popupPx * 0.85), width: 'auto', height: 'auto' }}
                 />
                 <button
                   onClick={closePopup}
