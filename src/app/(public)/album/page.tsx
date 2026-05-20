@@ -9,7 +9,7 @@ export default async function AlbumPage() {
 
   const [{ data: trips }, { data: photos }, { data: { user: authUser } }] = await Promise.all([
     supabase.from('trips').select('*').order('start_date', { ascending: false }),
-    supabase.from('photos').select('*').order('sort_order'),
+    supabase.from('photos').select('*'),
     supabase.auth.getUser(),
   ])
 
@@ -29,16 +29,37 @@ export default async function AlbumPage() {
     return acc
   }, {})
 
+  // Sort photos within each trip chronologically
+  for (const tripId in photosByTrip) {
+    photosByTrip[tripId].sort((a, b) => {
+      const da = a.taken_at ?? a.created_at
+      const db = b.taken_at ?? b.created_at
+      return da < db ? -1 : da > db ? 1 : 0
+    })
+  }
+
   const tripsWithPhotos = ((trips as Trip[]) ?? []).filter((t) => (photosByTrip[t.id]?.length ?? 0) > 0)
 
+  // Group trips by year for timeline
+  const tripGroups: Array<{ year: string; trips: Trip[] }> = []
+  for (const trip of tripsWithPhotos) {
+    const year = trip.start_date
+      ? new Date(trip.start_date).getFullYear().toString()
+      : '未知年份'
+    const last = tripGroups[tripGroups.length - 1]
+    if (last?.year === year) last.trips.push(trip)
+    else tripGroups.push({ year, trips: [trip] })
+  }
+
+  const totalPhotos = (photos as Photo[])?.length ?? 0
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-12">
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-10">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">旅行相册</h1>
           <p className="text-stone-500 text-sm mt-1">
-            {tripsWithPhotos.length} 次旅行，
-            {(photos as Photo[])?.length ?? 0} 张照片
+            {tripsWithPhotos.length} 次旅行，{totalPhotos} 张照片
           </p>
         </div>
         {isAdmin && (
@@ -52,7 +73,7 @@ export default async function AlbumPage() {
         )}
       </div>
 
-      {tripsWithPhotos.length === 0 && (
+      {tripsWithPhotos.length === 0 ? (
         <div className="text-center py-24 text-stone-400">
           <div className="text-5xl mb-4">📷</div>
           <p className="mb-4">还没有照片，快去上传第一张吧！</p>
@@ -66,17 +87,44 @@ export default async function AlbumPage() {
             </Link>
           )}
         </div>
-      )}
+      ) : (
+        <div className="relative">
+          {/* Timeline vertical line */}
+          <div className="absolute left-[18px] top-8 bottom-8 w-px bg-stone-200" />
 
-      {tripsWithPhotos.map((trip) => (
-        <TripGrid
-          key={trip.id}
-          trip={trip}
-          photos={photosByTrip[trip.id] ?? []}
-          allTrips={(trips as Trip[]) ?? []}
-          isAdmin={isAdmin}
-        />
-      ))}
+          {tripGroups.map(({ year, trips: yearTrips }) => (
+            <div key={year} className="mb-2">
+              {/* Year node */}
+              <div className="flex items-center gap-5 mb-8">
+                <div className="w-9 shrink-0 flex justify-center">
+                  <div className="w-8 h-8 rounded-full bg-primary-500 text-white text-xs font-bold flex items-center justify-center shadow-sm z-10">
+                    {year !== '未知年份' ? year.slice(-2) : '?'}
+                  </div>
+                </div>
+                <span className="text-xl font-bold text-stone-600">{year} 年</span>
+              </div>
+
+              {yearTrips.map((trip) => (
+                <div key={trip.id} className="flex gap-5 mb-14">
+                  {/* Trip dot */}
+                  <div className="w-9 shrink-0 flex justify-center pt-2">
+                    <div className="w-3 h-3 rounded-full bg-white border-2 border-primary-400 shadow-sm z-10" />
+                  </div>
+                  {/* Trip content */}
+                  <div className="flex-1 min-w-0">
+                    <TripGrid
+                      trip={trip}
+                      photos={photosByTrip[trip.id] ?? []}
+                      allTrips={(trips as Trip[]) ?? []}
+                      isAdmin={isAdmin}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
