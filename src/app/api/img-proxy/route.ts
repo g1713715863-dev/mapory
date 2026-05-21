@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 
-const ALLOWED = ['upload.wikimedia.org', 'commons.wikimedia.org']
+const ALLOWED = ['upload.wikimedia.org', 'commons.wikimedia.org', 'images.pexels.com']
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
