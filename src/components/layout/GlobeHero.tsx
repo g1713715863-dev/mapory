@@ -87,15 +87,21 @@ export default function GlobeHero() {
       const lngLat = map.unproject([clientX - rect.left, clientY - rect.top])
       if (!lngLat || isNaN(lngLat.lat) || isNaN(lngLat.lng)) return
 
+      if (Math.abs(lngLat.lat) > 85) return
+      const lat = lngLat.lat.toFixed(3)
+      const lng = lngLat.lng.toFixed(3)
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
       fetchPosRef.current = { x: clientX, y: clientY }
       setFetching(true)
       try {
-        const res = await fetch(
-          `/api/geo-photo?lat=${lngLat.lat.toFixed(3)}&lng=${lngLat.lng.toFixed(3)}`
+        const geoRes = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=place,region,country&language=zh&limit=1&access_token=${token}`
         )
-        if (res.ok) {
-          const data = await res.json()
-          if (data.title) setGeoPhoto(data)
+        if (geoRes.ok) {
+          const geoData = await geoRes.json()
+          const title = geoData.features?.[0]?.place_name ?? `${lat}°, ${lng}°`
+          const thumbnail = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${lng},${lat},9,0/200x200@2x?access_token=${token}`
+          setGeoPhoto({ title, thumbnail })
         }
       } catch { /* ignore */ } finally {
         setFetching(false)
@@ -109,29 +115,6 @@ export default function GlobeHero() {
     setGeoPhoto(null)
     setFetching(false)
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
-  }, [])
-
-  const handleLoad = useCallback(() => {
-    setLoaded(true)
-    const map = mapRef.current?.getMap()
-    if (!map) return
-    // Taiwan not labeled by Mapbox data — add manually
-    map.addSource('taiwan-pt', {
-      type: 'geojson',
-      data: { type: 'Feature', geometry: { type: 'Point', coordinates: [121.0, 23.5] }, properties: {} },
-    })
-    map.addLayer({
-      id: 'taiwan-label',
-      type: 'symbol',
-      source: 'taiwan-pt',
-      layout: {
-        'text-field': 'Taiwan',
-        'text-font': ['DIN Pro Regular', 'Arial Unicode MS Regular'],
-        'text-size': 11,
-        'text-letter-spacing': 0.05,
-      },
-      paint: { 'text-color': '#666', 'text-halo-color': '#fff', 'text-halo-width': 1 },
-    })
   }, [])
 
   return (
@@ -150,7 +133,7 @@ export default function GlobeHero() {
           mapStyle="mapbox://styles/mapbox/light-v11"
           interactive={false}
           attributionControl={false}
-          onLoad={handleLoad}
+          onLoad={() => setLoaded(true)}
         />
       </div>
 
