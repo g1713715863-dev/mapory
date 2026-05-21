@@ -2,7 +2,6 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react'
 import Map, { type MapRef } from 'react-map-gl/mapbox'
-import Link from 'next/link'
 import { Upload, MapIcon, Share2 } from 'lucide-react'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -12,43 +11,32 @@ interface GeoPhoto {
 }
 
 const BASE_ZOOM = 2.2
-const BREATHE_AMP = 0.04   // ±0.04 zoom
-const BREATHE_SPEED = 0.006 // ~5s cycle at 60fps
-const ROTATE_SPEED = 0.012  // deg/frame ≈ 0.7 deg/s → full rotation ~8.5 min
+const BREATHE_AMP = 0.04
+const BREATHE_SPEED = 0.006
+const ROTATE_SPEED = 0.012
 
 const tips = [
-  {
-    step: '01',
-    icon: Upload,
-    title: '上传',
-    desc: '拖入旅行照片，GPS 自动定位，手动也可精调',
-  },
-  {
-    step: '02',
-    icon: MapIcon,
-    title: '查看',
-    desc: '地图模式看足迹分布，相册模式按时间翻阅',
-  },
-  {
-    step: '03',
-    icon: Share2,
-    title: '分享',
-    desc: '生成专属相册链接，把故事分享给家人朋友',
-  },
+  { step: '01', icon: Upload,  title: '上传', desc: '拖入旅行照片，GPS 自动定位，手动也可精调' },
+  { step: '02', icon: MapIcon, title: '查看', desc: '地图模式看足迹分布，相册模式按时间翻阅' },
+  { step: '03', icon: Share2,  title: '分享', desc: '生成专属相册链接，把故事分享给家人朋友' },
 ]
 
 export default function GlobeHero() {
-  const mapRef = useRef<MapRef>(null)
-  const [loaded, setLoaded] = useState(false)
+  const mapRef      = useRef<MapRef>(null)
+  const [loaded, setLoaded]     = useState(false)
   const [geoPhoto, setGeoPhoto] = useState<GeoPhoto | null>(null)
+  const [fetching, setFetching] = useState(false)
   const [bubblePos, setBubblePos] = useState({ x: 0, y: 0 })
-  const rafRef = useRef<number>(0)
-  const lngRef = useRef(0)
-  const breathRef = useRef(0)
-  const isHovering = useRef(false)
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Auto-rotation + zoom breathing (no CSS transform — keeps unproject accurate)
+  const rafRef         = useRef<number>(0)
+  const lngRef         = useRef(0)
+  const breathRef      = useRef(0)
+  const isHovering     = useRef(false)
+  const debounceTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track where the last fetch was triggered; only clear photo on large movement
+  const fetchPosRef    = useRef<{ x: number; y: number } | null>(null)
+
+  // Auto-rotation + breathing — completely paused while hovering
   useEffect(() => {
     if (!loaded) return
     const map = mapRef.current?.getMap()
@@ -57,14 +45,14 @@ export default function GlobeHero() {
     ;(map as any).setProjection('globe')
 
     function animate() {
-      breathRef.current += BREATHE_SPEED
-      const zoom = BASE_ZOOM + Math.sin(breathRef.current) * BREATHE_AMP
       if (!isHovering.current) {
-        lngRef.current += ROTATE_SPEED
-        const lng = lngRef.current % 360
+        breathRef.current += BREATHE_SPEED
+        lngRef.current    += ROTATE_SPEED
+        const lng  = lngRef.current % 360
+        const zoom = BASE_ZOOM + Math.sin(breathRef.current) * BREATHE_AMP
         map!.setCenter([lng > 180 ? lng - 360 : lng, 20])
+        map!.setZoom(zoom)
       }
-      map!.setZoom(zoom)
       rafRef.current = requestAnimationFrame(animate)
     }
     rafRef.current = requestAnimationFrame(animate)
@@ -79,18 +67,28 @@ export default function GlobeHero() {
     const { clientX, clientY } = e
     isHovering.current = true
     setBubblePos({ x: clientX, y: clientY })
-    setGeoPhoto(null)
+
+    // Only clear photo when cursor moves far (>100px) from where it was fetched
+    if (fetchPosRef.current) {
+      const dx = clientX - fetchPosRef.current.x
+      const dy = clientY - fetchPosRef.current.y
+      if (Math.hypot(dx, dy) > 100) {
+        setGeoPhoto(null)
+        fetchPosRef.current = null
+      }
+    }
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(async () => {
       const map = mapRef.current?.getMap()
       if (!map) return
-      // Use the actual canvas element bounds for accurate unproject
-      const canvas = map.getCanvas()
-      const rect = canvas.getBoundingClientRect()
+      const container = map.getContainer()
+      const rect = container.getBoundingClientRect()
       const lngLat = map.unproject([clientX - rect.left, clientY - rect.top])
-      if (!lngLat || Math.abs(lngLat.lat) > 85) return
+      if (!lngLat || isNaN(lngLat.lat) || isNaN(lngLat.lng)) return
 
+      fetchPosRef.current = { x: clientX, y: clientY }
+      setFetching(true)
       try {
         const res = await fetch(
           `/api/geo-photo?lat=${lngLat.lat.toFixed(3)}&lng=${lngLat.lng.toFixed(3)}`
@@ -99,13 +97,17 @@ export default function GlobeHero() {
           const data = await res.json()
           if (data.title) setGeoPhoto(data)
         }
-      } catch { /* ignore */ }
-    }, 700)
+      } catch { /* ignore */ } finally {
+        setFetching(false)
+      }
+    }, 500)
   }, [])
 
   const handleMouseLeave = useCallback(() => {
-    isHovering.current = false
+    isHovering.current  = false
+    fetchPosRef.current = null
     setGeoPhoto(null)
+    setFetching(false)
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
   }, [])
 
@@ -115,7 +117,7 @@ export default function GlobeHero() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Globe — no CSS transform so unproject stays accurate */}
+      {/* Globe */}
       <div className="absolute inset-0">
         <Map
           ref={mapRef}
@@ -129,11 +131,11 @@ export default function GlobeHero() {
         />
       </div>
 
-      {/* Bottom gradient */}
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#0a0908] to-transparent pointer-events-none z-10" />
+      {/* Bottom gradient — shorter and softer */}
+      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#0a0908]/85 to-transparent pointer-events-none z-10" />
 
       {/* Three-step tip cards */}
-      <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-8 md:pb-10">
+      <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-7 md:pb-9">
         <div className="max-w-2xl mx-auto grid grid-cols-3 gap-3">
           {tips.map(({ step, icon: Icon, title, desc }) => (
             <div
@@ -158,13 +160,23 @@ export default function GlobeHero() {
         </p>
       )}
 
+      {/* Fetching indicator */}
+      {fetching && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{ left: bubblePos.x + 14, top: bubblePos.y - 14 }}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-white/60 animate-pulse" />
+        </div>
+      )}
+
       {/* Polaroid bubble */}
       {geoPhoto && (
         <div
           className="fixed z-50 pointer-events-none"
           style={{
             left: bubblePos.x + 28,
-            top: Math.max(16, bubblePos.y - 150),
+            top:  Math.max(16, bubblePos.y - 150),
           }}
         >
           <div
