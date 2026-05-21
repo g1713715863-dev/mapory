@@ -31,13 +31,43 @@ export default function GlobeHero() {
   const [fetching, setFetching] = useState(false)
   const [bubblePos, setBubblePos] = useState({ x: 0, y: 0 })
 
-  const rafRef         = useRef<number>(0)
-  const lngRef         = useRef(0)
-  const breathRef      = useRef(0)
-  const isHovering     = useRef(false)
-  const rotateSpeedRef = useRef(ROTATE_SPEED)
-  const debounceTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const fetchPosRef    = useRef<{ x: number; y: number } | null>(null)
+  const rafRef           = useRef<number>(0)
+  const lngRef           = useRef(0)
+  const breathRef        = useRef(0)
+  const isHovering       = useRef(false)
+  const rotateSpeedRef   = useRef(ROTATE_SPEED)
+  const isTouchDragging  = useRef(false)
+  const debounceTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fetchPosRef      = useRef<{ x: number; y: number } | null>(null)
+
+  // Touch: drag left/right to spin the globe
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    let lastX = 0
+    const onTouchStart = (e: TouchEvent) => {
+      lastX = e.touches[0].clientX
+      isTouchDragging.current = true
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isTouchDragging.current) return
+      e.preventDefault()
+      const dx = e.touches[0].clientX - lastX
+      lngRef.current -= dx * 0.4   // drag right → globe turns right
+      lastX = e.touches[0].clientX
+    }
+    const onTouchEnd = () => { isTouchDragging.current = false }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove',  onTouchMove,  { passive: false })
+    el.addEventListener('touchend',   onTouchEnd)
+    el.addEventListener('touchcancel', onTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove',  onTouchMove)
+      el.removeEventListener('touchend',   onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
+    }
+  }, [])
 
   // Wheel: scroll down = spin faster right, scroll up = slow / reverse
   useEffect(() => {
@@ -63,12 +93,12 @@ export default function GlobeHero() {
     ;(map as any).setProjection('globe')
 
     function animate() {
-      // Decay speed back toward base every frame
       rotateSpeedRef.current += (ROTATE_SPEED - rotateSpeedRef.current) * 0.015
 
-      if (!isHovering.current) {
+      // Apply movement when touch-dragging OR auto-rotating (not mouse-hovering)
+      if (isTouchDragging.current || !isHovering.current) {
         breathRef.current += BREATHE_SPEED
-        lngRef.current    += rotateSpeedRef.current
+        if (!isTouchDragging.current) lngRef.current += rotateSpeedRef.current
         const lng  = lngRef.current % 360
         const zoom = BASE_ZOOM + Math.sin(breathRef.current) * BREATHE_AMP
         map!.setCenter([lng > 180 ? lng - 360 : lng, 20])
