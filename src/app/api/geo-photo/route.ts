@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     // Step 1: find nearby Wikipedia articles
     const searchRes = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=50000&gslimit=10&format=json&origin=*`,
+      `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=100000&gslimit=20&format=json&origin=*`,
       { next: { revalidate: 3600 } }
     )
     if (!searchRes.ok) return NextResponse.json({})

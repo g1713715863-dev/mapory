@@ -65,8 +65,17 @@ export default function GlobeHero() {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const { clientX, clientY } = e
-    isHovering.current = true
     setBubblePos({ x: clientX, y: clientY })
+
+    // Only pause rotation when cursor is over the visible globe sphere
+    const mapInst = mapRef.current?.getMap()
+    if (mapInst) {
+      const rect = mapInst.getContainer().getBoundingClientRect()
+      const pt = mapInst.unproject([clientX - rect.left, clientY - rect.top])
+      isHovering.current = !!(pt && !isNaN(pt.lat) && !isNaN(pt.lng))
+    } else {
+      isHovering.current = false
+    }
 
     // Only clear photo when cursor moves far (>100px) from where it was fetched
     if (fetchPosRef.current) {
