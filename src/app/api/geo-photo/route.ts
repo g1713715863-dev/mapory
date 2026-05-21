@@ -9,9 +9,10 @@ export async function GET(req: NextRequest) {
 
   try {
     // Step 1: find nearby Wikipedia articles
+    const ua = { 'User-Agent': 'MaporyBot/1.0 (travel photo map; contact g1713715863@gmail.com)' }
     const searchRes = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=100000&gslimit=20&format=json&origin=*`,
-      { next: { revalidate: 3600 } }
+      `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=100000&gslimit=20&format=json`,
+      { headers: ua, next: { revalidate: 3600 } }
     )
     if (!searchRes.ok) return NextResponse.json({})
     const searchData = await searchRes.json()
@@ -21,8 +22,8 @@ export async function GET(req: NextRequest) {
     // Step 2: batch-fetch thumbnails for all candidates in one request
     const pageIds = pages.map(p => p.pageid).join('|')
     const thumbRes = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&pageids=${pageIds}&prop=pageimages&pithumbsize=400&format=json&origin=*`,
-      { next: { revalidate: 3600 } }
+      `https://en.wikipedia.org/w/api.php?action=query&pageids=${pageIds}&prop=pageimages&pithumbsize=400&format=json`,
+      { headers: ua, next: { revalidate: 3600 } }
     )
     if (!thumbRes.ok) return NextResponse.json({})
     const thumbData = await thumbRes.json()
