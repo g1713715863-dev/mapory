@@ -117,6 +117,20 @@ export default function GlobeHero() {
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
   }, [])
 
+  const handleLoad = useCallback(() => {
+    setLoaded(true)
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    if (map.getLayer('country-label')) {
+      const existing = map.getFilter('country-label')
+      map.setFilter('country-label', [
+        'all',
+        ...(existing ? [existing] : []),
+        ['!=', ['get', 'name_en'], 'Taiwan'],
+      ])
+    }
+  }, [])
+
   return (
     <div
       className="relative md:-mt-14 h-screen bg-[#0a0908] overflow-hidden"
@@ -133,7 +147,7 @@ export default function GlobeHero() {
           mapStyle="mapbox://styles/mapbox/light-v11"
           interactive={false}
           attributionControl={false}
-          onLoad={() => setLoaded(true)}
+          onLoad={handleLoad}
         />
       </div>
 
