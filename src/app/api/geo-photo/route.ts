@@ -1,28 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+interface GeoPage { pageid: number; title: string }
+
 export async function GET(req: NextRequest) {
   const lat = req.nextUrl.searchParams.get('lat')
   const lng = req.nextUrl.searchParams.get('lng')
   if (!lat || !lng) return NextResponse.json({})
 
   try {
-    // Single request: generator=geosearch combines proximity search + image lookup
-    const res = await fetch(
-      `https://en.wikipedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${lat}|${lng}&ggsradius=50000&ggslimit=10&prop=pageimages&pithumbsize=400&format=json&origin=*`,
+    // Step 1: find nearby Wikipedia articles
+    const searchRes = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lng}&gsradius=50000&gslimit=10&format=json&origin=*`,
       { next: { revalidate: 3600 } }
     )
-    if (!res.ok) return NextResponse.json({})
-    const data = await res.json()
+    if (!searchRes.ok) return NextResponse.json({})
+    const searchData = await searchRes.json()
+    const pages: GeoPage[] = searchData?.query?.geosearch ?? []
+    if (pages.length === 0) return NextResponse.json({})
 
-    const pages = Object.values(data?.query?.pages ?? {}) as Array<{
-      title: string
-      thumbnail?: { source: string }
-    }>
+    // Step 2: batch-fetch thumbnails for all candidates in one request
+    const pageIds = pages.map(p => p.pageid).join('|')
+    const thumbRes = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&pageids=${pageIds}&prop=pageimages&pithumbsize=400&format=json&origin=*`,
+      { next: { revalidate: 3600 } }
+    )
+    if (!thumbRes.ok) return NextResponse.json({})
+    const thumbData = await thumbRes.json()
 
     for (const page of pages) {
-      if (page.thumbnail?.source) {
+      const thumbnail = thumbData?.query?.pages?.[page.pageid]?.thumbnail?.source
+      if (thumbnail) {
         return NextResponse.json(
-          { title: page.title, thumbnail: page.thumbnail.source },
+          { title: page.title, thumbnail },
           { headers: { 'Cache-Control': 'public, max-age=3600' } }
         )
       }

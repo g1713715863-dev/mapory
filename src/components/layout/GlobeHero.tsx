@@ -90,18 +90,19 @@ export default function GlobeHero() {
       if (Math.abs(lngLat.lat) > 85) return
       const lat = lngLat.lat.toFixed(3)
       const lng = lngLat.lng.toFixed(3)
-      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
       fetchPosRef.current = { x: clientX, y: clientY }
       setFetching(true)
       try {
-        const geoRes = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=place,region,country&language=zh&limit=1&access_token=${token}`
-        )
-        if (geoRes.ok) {
-          const geoData = await geoRes.json()
-          const title = geoData.features?.[0]?.place_name ?? `${lat}°, ${lng}°`
-          const thumbnail = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${lng},${lat},9,0/200x200@2x?access_token=${token}`
-          setGeoPhoto({ title, thumbnail })
+        const res = await fetch(`/api/geo-photo?lat=${lat}&lng=${lng}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.title) {
+            setGeoPhoto({
+              title: data.title,
+              // proxy through server so upload.wikimedia.org is accessible in China
+              thumbnail: `/api/img-proxy?url=${encodeURIComponent(data.thumbnail)}`,
+            })
+          }
         }
       } catch { /* ignore */ } finally {
         setFetching(false)
