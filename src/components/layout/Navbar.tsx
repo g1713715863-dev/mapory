@@ -144,11 +144,21 @@ export default function Navbar() {
     )
   }
 
+  const isHome = path === '/'
+
   return (
     <>
       {/* 顶部导航（桌面端） */}
-      <header className="hidden md:flex fixed top-0 inset-x-0 z-40 h-14 items-center justify-between px-6 bg-white/90 backdrop-blur border-b border-stone-100">
-        <Link href="/" className="font-semibold text-lg tracking-tight text-stone-900">
+      <header className={cn(
+        'hidden md:flex fixed top-0 inset-x-0 z-40 h-14 items-center justify-between px-6 transition-colors duration-300',
+        isHome
+          ? 'bg-transparent border-b border-white/10'
+          : 'bg-white/90 backdrop-blur border-b border-stone-100'
+      )}>
+        <Link href="/" className={cn(
+          'font-semibold text-lg tracking-tight',
+          isHome ? 'text-white/80' : 'text-stone-900'
+        )}>
           Mapory
         </Link>
         <nav className="flex items-center gap-1">
@@ -158,9 +168,13 @@ export default function Navbar() {
               href={href}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
-                path.startsWith(href)
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                isHome
+                  ? path.startsWith(href)
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60 hover:text-white hover:bg-white/10'
+                  : path.startsWith(href)
+                    ? 'bg-primary-100 text-primary-700'
+                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
               )}
             >
               <Icon size={15} />
@@ -304,8 +318,8 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* 底部导航栏（移动端） */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around h-16 bg-white border-t border-stone-100 safe-bottom">
+      {/* 底部导航栏（移动端，首页隐藏） */}
+      <nav className={cn('md:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around h-16 bg-white border-t border-stone-100 safe-bottom', isHome && 'hidden')}>
         {nav.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

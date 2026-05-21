@@ -86,6 +86,16 @@ body {
   opacity: 0.45 !important;
 }
 
+/* 地球呼吸动画 */
+@keyframes globe-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.018); }
+}
+.globe-breathe {
+  animation: globe-breathe 5s ease-in-out infinite;
+  transform-origin: center center;
+}
+
 /* Mapbox marker */
 .photo-marker {
   cursor: pointer;
