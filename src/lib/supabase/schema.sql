@@ -41,14 +41,18 @@ create table public.trips (
   cover_url text,
   start_date date,
   end_date date,
+  is_public boolean not null default false,
   sort_order int not null default 0,
   created_at timestamptz not null default now()
 );
 
 alter table public.trips enable row level security;
 
-create policy "Trips are viewable by everyone"
-  on public.trips for select using (true);
+create policy "Trips viewable by admin or if public"
+  on public.trips for select using (
+    is_public = true
+    or exists (select 1 from public.user_profiles where id = auth.uid() and is_admin = true)
+  );
 
 create policy "Only admins can manage trips"
   on public.trips for all using (
@@ -74,8 +78,11 @@ create table public.photos (
 
 alter table public.photos enable row level security;
 
-create policy "Photos are viewable by everyone"
-  on public.photos for select using (true);
+create policy "Photos viewable by admin or if trip is public"
+  on public.photos for select using (
+    exists (select 1 from public.trips where id = trip_id and is_public = true)
+    or exists (select 1 from public.user_profiles where id = auth.uid() and is_admin = true)
+  );
 
 create policy "Only admins can manage photos"
   on public.photos for all using (
@@ -125,3 +132,22 @@ create or replace view public.comments_with_user as
   left join public.user_profiles p on p.id = c.user_id;
 
 grant select on public.comments_with_user to anon, authenticated;
+
+-- Share links (admin-created links giving access to specific trips)
+create table public.share_links (
+  id uuid primary key default gen_random_uuid(),
+  token text not null unique default encode(gen_random_bytes(16), 'hex'),
+  trip_ids uuid[] not null,
+  label text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.share_links enable row level security;
+
+create policy "Anyone can read share links"
+  on public.share_links for select using (true);
+
+create policy "Only admins can manage share links"
+  on public.share_links for all using (
+    exists (select 1 from public.user_profiles where id = auth.uid() and is_admin = true)
+  );

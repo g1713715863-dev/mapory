@@ -5,8 +5,17 @@ export interface Trip {
   cover_url: string | null
   start_date: string | null
   end_date: string | null
+  is_public: boolean
   created_at: string
   photo_count?: number
+}
+
+export interface ShareLink {
+  id: string
+  token: string
+  trip_ids: string[]
+  label: string
+  created_at: string
 }
 
 export interface Photo {
