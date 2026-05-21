@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader, Pencil, Check, X, Route, MessageSquare } from 'lucide-react'
+import { Map, Images, User, LogOut, Upload, ChevronDown, Camera, Loader, Pencil, Check, X, Route, MessageSquare, Compass } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 
 const nav = [
-  { href: '/map', label: '地图', icon: Map },
+  { href: '/',      label: '导览', icon: Compass },
+  { href: '/map',   label: '地图', icon: Map },
   { href: '/album', label: '相册', icon: Images },
 ]
 
@@ -144,43 +145,32 @@ export default function Navbar() {
     )
   }
 
-  const isHome = path === '/'
-
   return (
     <>
       {/* 顶部导航（桌面端） */}
-      <header className={cn(
-        'hidden md:flex fixed top-0 inset-x-0 z-40 h-14 items-center justify-between px-6 transition-colors duration-300',
-        isHome
-          ? 'bg-transparent border-b border-white/10'
-          : 'bg-white/90 backdrop-blur border-b border-stone-100'
-      )}>
-        <Link href="/" className={cn(
-          'font-semibold text-lg tracking-tight',
-          isHome ? 'text-white/80' : 'text-stone-900'
-        )}>
+      <header className="hidden md:flex fixed top-0 inset-x-0 z-40 h-14 items-center justify-between px-6 bg-white/90 backdrop-blur border-b border-stone-100">
+        <Link href="/" className="font-semibold text-lg tracking-tight text-stone-900">
           Mapory
         </Link>
         <nav className="flex items-center gap-1">
-          {nav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
-                isHome
-                  ? path.startsWith(href)
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/60 hover:text-white hover:bg-white/10'
-                  : path.startsWith(href)
+          {nav.map(({ href, label, icon: Icon }) => {
+            const isActive = href === '/' ? path === '/' : path.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                  isActive
                     ? 'bg-primary-100 text-primary-700'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
-              )}
-            >
-              <Icon size={15} />
-              {label}
-            </Link>
-          ))}
+                )}
+              >
+                <Icon size={15} />
+                {label}
+              </Link>
+            )
+          })}
         </nav>
 
         {authUser ? (
@@ -318,23 +308,24 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* 底部导航栏（移动端，首页隐藏） */}
-      <nav className={cn('md:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around h-16 bg-white border-t border-stone-100 safe-bottom', isHome && 'hidden')}>
-        {nav.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'flex flex-col items-center gap-0.5 px-6 py-1 rounded-xl transition-colors',
-              path.startsWith(href)
-                ? 'text-primary-600'
-                : 'text-stone-400 hover:text-stone-700'
-            )}
-          >
-            <Icon size={22} strokeWidth={path.startsWith(href) ? 2.5 : 1.8} />
-            <span className="text-[10px] font-medium">{label}</span>
-          </Link>
-        ))}
+      {/* 底部导航栏（移动端） */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-center justify-around h-16 bg-white border-t border-stone-100 safe-bottom">
+        {nav.map(({ href, label, icon: Icon }) => {
+          const isActive = href === '/' ? path === '/' : path.startsWith(href)
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-colors',
+                isActive ? 'text-primary-600' : 'text-stone-400 hover:text-stone-700'
+              )}
+            >
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+              <span className="text-[10px] font-medium">{label}</span>
+            </Link>
+          )
+        })}
 
         {authUser ? (
           <button
