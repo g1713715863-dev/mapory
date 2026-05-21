@@ -198,20 +198,20 @@ export default function GlobeHero() {
         <div
           className="fixed z-50 pointer-events-none"
           style={{
-            left: bubblePos.x + 28,
-            top:  Math.max(16, bubblePos.y - 150),
+            left: bubblePos.x + 32,
+            top:  Math.max(16, bubblePos.y - 200),
           }}
         >
           <div
             className="bg-white shadow-2xl"
-            style={{ padding: '10px 10px 28px', width: 168, transform: 'rotate(-2.5deg)' }}
+            style={{ padding: '12px 12px 40px', width: 220 }}
           >
             <img
               src={geoPhoto.thumbnail}
               alt={geoPhoto.title}
               className="w-full aspect-square object-cover block"
             />
-            <p className="text-stone-500 text-[10px] text-center mt-2 truncate">
+            <p className="text-stone-500 text-[11px] text-center mt-2 truncate">
               {geoPhoto.title}
             </p>
           </div>
