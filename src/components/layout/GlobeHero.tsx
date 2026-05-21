@@ -100,7 +100,7 @@ export default function GlobeHero() {
       } catch { /* ignore */ } finally {
         setFetching(false)
       }
-    }, 500)
+    }, 300)
   }, [])
 
   const handleMouseLeave = useCallback(() => {
@@ -131,8 +131,8 @@ export default function GlobeHero() {
         />
       </div>
 
-      {/* Bottom gradient — shorter and softer */}
-      <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#0a0908]/85 to-transparent pointer-events-none z-10" />
+      {/* Bottom gradient — multi-stop for natural fade */}
+      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#0a0908] via-[#0a0908]/50 to-transparent pointer-events-none z-10" />
 
       {/* Three-step tip cards */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-7 md:pb-9">
@@ -140,14 +140,14 @@ export default function GlobeHero() {
           {tips.map(({ step, icon: Icon, title, desc }) => (
             <div
               key={step}
-              className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-4"
+              className="rounded-xl border border-white/15 bg-white/8 backdrop-blur-sm p-4"
             >
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-white/30 text-[10px] font-mono">{step}</span>
-                <Icon size={13} className="text-white/50" />
+                <span className="text-white/40 text-[10px] font-mono">{step}</span>
+                <Icon size={13} className="text-white/60" />
                 <span className="text-white text-sm font-medium">{title}</span>
               </div>
-              <p className="text-white/40 text-[11px] leading-relaxed">{desc}</p>
+              <p className="text-white/65 text-[11px] leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
