@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Step 2: search Pexels for a photo of that place
     const pexRes = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(keyword)}&per_page=1&orientation=square`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(keyword + ' scenery')}&per_page=5&orientation=landscape`,
       { headers: { Authorization: pexelsKey }, next: { revalidate: 3600 } }
     )
     if (!pexRes.ok) return NextResponse.json({})
