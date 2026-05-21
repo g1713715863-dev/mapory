@@ -67,12 +67,22 @@ export default function GlobeHero() {
     const { clientX, clientY } = e
     setBubblePos({ x: clientX, y: clientY })
 
-    // Only pause rotation when cursor is over the visible globe sphere
+    // Only pause rotation when cursor is inside the visible globe disc.
+    // unproject() returns valid coords even for dark corners in globe mode,
+    // so instead we compute the disc radius via project(): a point 90° east
+    // on the equator is always exactly on the visible limb (great-circle dist
+    // from any centre lat = 90°), giving us the screen radius of the sphere.
     const mapInst = mapRef.current?.getMap()
     if (mapInst) {
       const rect = mapInst.getContainer().getBoundingClientRect()
-      const pt = mapInst.unproject([clientX - rect.left, clientY - rect.top])
-      isHovering.current = !!(pt && !isNaN(pt.lat) && !isNaN(pt.lng))
+      const centre = mapInst.getCenter()
+      const limbPx = mapInst.project([centre.lng + 90, 0])
+      const cx = rect.width / 2
+      const cy = rect.height / 2
+      const globeR = Math.hypot(limbPx.x - cx, limbPx.y - cy)
+      const ddx = (clientX - rect.left) - cx
+      const ddy = (clientY - rect.top) - cy
+      isHovering.current = Math.hypot(ddx, ddy) <= globeR
     } else {
       isHovering.current = false
     }
