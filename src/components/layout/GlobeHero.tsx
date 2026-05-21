@@ -14,6 +14,8 @@ const BASE_ZOOM = 2.2
 const BREATHE_AMP = 0.04
 const BREATHE_SPEED = 0.006
 const ROTATE_SPEED = 0.012
+const ROTATE_MAX = 0.08
+const ROTATE_MIN = -0.05
 
 const tips = [
   { step: '01', icon: Upload,  title: '上传', desc: '拖入旅行照片，GPS 自动定位，手动也可精调' },
@@ -23,6 +25,7 @@ const tips = [
 
 export default function GlobeHero() {
   const mapRef      = useRef<MapRef>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [loaded, setLoaded]     = useState(false)
   const [geoPhoto, setGeoPhoto] = useState<GeoPhoto | null>(null)
   const [fetching, setFetching] = useState(false)
@@ -32,11 +35,26 @@ export default function GlobeHero() {
   const lngRef         = useRef(0)
   const breathRef      = useRef(0)
   const isHovering     = useRef(false)
+  const rotateSpeedRef = useRef(ROTATE_SPEED)
   const debounceTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Track where the last fetch was triggered; only clear photo on large movement
   const fetchPosRef    = useRef<{ x: number; y: number } | null>(null)
 
-  // Auto-rotation + breathing — completely paused while hovering
+  // Wheel: scroll down = spin faster right, scroll up = slow / reverse
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      rotateSpeedRef.current = Math.max(
+        ROTATE_MIN,
+        Math.min(ROTATE_MAX, rotateSpeedRef.current + e.deltaY * 0.0001)
+      )
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // Auto-rotation + breathing — paused while hovering
   useEffect(() => {
     if (!loaded) return
     const map = mapRef.current?.getMap()
@@ -45,9 +63,12 @@ export default function GlobeHero() {
     ;(map as any).setProjection('globe')
 
     function animate() {
+      // Decay speed back toward base every frame
+      rotateSpeedRef.current += (ROTATE_SPEED - rotateSpeedRef.current) * 0.015
+
       if (!isHovering.current) {
         breathRef.current += BREATHE_SPEED
-        lngRef.current    += ROTATE_SPEED
+        lngRef.current    += rotateSpeedRef.current
         const lng  = lngRef.current % 360
         const zoom = BASE_ZOOM + Math.sin(breathRef.current) * BREATHE_AMP
         map!.setCenter([lng > 180 ? lng - 360 : lng, 20])
@@ -67,11 +88,6 @@ export default function GlobeHero() {
     const { clientX, clientY } = e
     setBubblePos({ x: clientX, y: clientY })
 
-    // Only pause rotation when cursor is inside the visible globe disc.
-    // unproject() returns valid coords even for dark corners in globe mode,
-    // so instead we compute the disc radius via project(): a point 90° east
-    // on the equator is always exactly on the visible limb (great-circle dist
-    // from any centre lat = 90°), giving us the screen radius of the sphere.
     const mapInst = mapRef.current?.getMap()
     if (mapInst) {
       const rect = mapInst.getContainer().getBoundingClientRect()
@@ -87,7 +103,6 @@ export default function GlobeHero() {
       isHovering.current = false
     }
 
-    // Only clear photo when cursor moves far (>100px) from where it was fetched
     if (fetchPosRef.current) {
       const dx = clientX - fetchPosRef.current.x
       const dy = clientY - fetchPosRef.current.y
@@ -118,7 +133,6 @@ export default function GlobeHero() {
           if (data.title) {
             setGeoPhoto({
               title: data.title,
-              // proxy through server so upload.wikimedia.org is accessible in China
               thumbnail: `/api/img-proxy?url=${encodeURIComponent(data.thumbnail)}`,
             })
           }
@@ -153,6 +167,7 @@ export default function GlobeHero() {
 
   return (
     <div
+      ref={containerRef}
       className="relative md:-mt-14 h-screen bg-[#0a0908] overflow-hidden"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
