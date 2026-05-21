@@ -111,6 +111,29 @@ export default function GlobeHero() {
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
   }, [])
 
+  const handleLoad = useCallback(() => {
+    setLoaded(true)
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    // Taiwan not labeled by Mapbox data — add manually
+    map.addSource('taiwan-pt', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'Point', coordinates: [121.0, 23.5] }, properties: {} },
+    })
+    map.addLayer({
+      id: 'taiwan-label',
+      type: 'symbol',
+      source: 'taiwan-pt',
+      layout: {
+        'text-field': 'Taiwan',
+        'text-font': ['DIN Pro Regular', 'Arial Unicode MS Regular'],
+        'text-size': 11,
+        'text-letter-spacing': 0.05,
+      },
+      paint: { 'text-color': '#666', 'text-halo-color': '#fff', 'text-halo-width': 1 },
+    })
+  }, [])
+
   return (
     <div
       className="relative md:-mt-14 h-screen bg-[#0a0908] overflow-hidden"
@@ -127,12 +150,15 @@ export default function GlobeHero() {
           mapStyle="mapbox://styles/mapbox/light-v11"
           interactive={false}
           attributionControl={false}
-          onLoad={() => setLoaded(true)}
+          onLoad={handleLoad}
         />
       </div>
 
-      {/* Bottom gradient — multi-stop for natural fade */}
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#0a0908] via-[#0a0908]/50 to-transparent pointer-events-none z-10" />
+      {/* Bottom gradient — 5-stop inline for smooth fade */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-72 pointer-events-none z-10"
+        style={{ background: 'linear-gradient(to top, #0a0908 0%, rgba(10,9,8,0.82) 18%, rgba(10,9,8,0.52) 38%, rgba(10,9,8,0.18) 62%, rgba(10,9,8,0.04) 82%, transparent 100%)' }}
+      />
 
       {/* Three-step tip cards */}
       <div className="absolute inset-x-0 bottom-0 z-20 px-6 pb-7 md:pb-9">
