@@ -185,6 +185,8 @@ export default function GlobeHero() {
     setLoaded(true)
     const map = mapRef.current?.getMap()
     if (!map) return
+
+    // Taiwan label fix
     if (map.getLayer('country-label')) {
       const existing = map.getFilter('country-label')
       map.setFilter('country-label', [
@@ -192,6 +194,33 @@ export default function GlobeHero() {
         ...(existing ? [existing] : []),
         ['!=', ['get', 'name_en'], 'Taiwan'],
       ])
+    }
+
+    // DEM hillshade — adds light/shadow relief on top of outdoors terrain colours
+    if (!map.getSource('mapbox-dem')) {
+      map.addSource('mapbox-dem', {
+        type: 'raster-dem',
+        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        tileSize: 512,
+        maxzoom: 14,
+      })
+      // Insert before the first symbol layer so labels stay on top
+      const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
+      map.addLayer(
+        {
+          id: 'terrain-hillshade',
+          type: 'hillshade',
+          source: 'mapbox-dem',
+          paint: {
+            'hillshade-illumination-direction': 335,
+            'hillshade-exaggeration': 0.5,
+            'hillshade-shadow-color': '#5a3d25',
+            'hillshade-highlight-color': '#ffffff',
+            'hillshade-accent-color': '#6b4c30',
+          },
+        },
+        firstSymbol,
+      )
     }
   }, [])
 
@@ -203,13 +232,13 @@ export default function GlobeHero() {
       onMouseLeave={handleMouseLeave}
     >
       {/* Globe */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" style={{ filter: 'saturate(0.68) brightness(1.06)' }}>
         <Map
           ref={mapRef}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle="mapbox://styles/mapbox/outdoors-v12"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
