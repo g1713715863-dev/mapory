@@ -89,9 +89,6 @@ export default function GlobeHero() {
     if (!loaded) return
     const map = mapRef.current?.getMap()
     if (!map) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(map as any).setProjection('globe')
-
     function animate() {
       rotateSpeedRef.current += (ROTATE_SPEED - rotateSpeedRef.current) * 0.015
 
@@ -196,29 +193,19 @@ export default function GlobeHero() {
       ])
     }
 
-    // Transparent atmosphere: space-color/star-intensity give dark space + stars;
-    // fog colour is nearly transparent so it never composites grey onto globe surface.
-    // Root cause of all previous greyscale: dark fog colour composited over the whole
-    // sphere in Mapbox GL v3 globe mode regardless of range setting.
+    // Official Mapbox globe fog: light-blue lower atmosphere keeps terrain colours visible;
+    // dark fog colour (all prior attempts) composited grey over the entire sphere in GL v3.
     map.setFog({
+      color: 'rgb(186, 210, 235)',
+      'high-color': '#245bde',
+      'horizon-blend': 0.02,
       'space-color': '#0a0908',
-      'star-intensity': 0.15,
-      'color': 'rgba(186, 210, 235, 0.12)',
-      'range': [0.5, 10],
-      'horizon-blend': 0.04,
+      'star-intensity': 0.6,
     })
 
-    // Desaturate satellite raster → natural low-saturation terrain palette
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(map.getStyle().layers as any[])
-      .filter((l: { type: string }) => l.type === 'raster')
-      .forEach((l: { id: string }) => {
-        try {
-          map.setPaintProperty(l.id, 'raster-saturation', -0.55)
-          map.setPaintProperty(l.id, 'raster-brightness-min', 0.05)
-          map.setPaintProperty(l.id, 'raster-contrast', -0.1)
-        } catch { /* layer may not support property */ }
-      })
+    // Mild desaturation; -0.3 reduces vividness without losing colour entirely
+    try { map.setPaintProperty('satellite', 'raster-saturation', -0.3) } catch {}
+    try { map.setPaintProperty('satellite', 'raster-contrast', 0.1) } catch {}
   }, [])
 
   return (
@@ -235,6 +222,8 @@ export default function GlobeHero() {
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
           mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
+          // @ts-expect-error projection is a valid mapbox-gl v3 constructor option
+          projection="globe"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
