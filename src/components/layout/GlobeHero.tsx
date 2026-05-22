@@ -196,53 +196,29 @@ export default function GlobeHero() {
       ])
     }
 
-    // Dark space + stars — range [2, 10] starts well outside the globe surface
-    // (globe surface ≈ fog-unit 0.8–1.0) so the fog colour never overlays terrain
+    // Transparent atmosphere: space-color/star-intensity give dark space + stars;
+    // fog colour is nearly transparent so it never composites grey onto globe surface.
+    // Root cause of all previous greyscale: dark fog colour composited over the whole
+    // sphere in Mapbox GL v3 globe mode regardless of range setting.
     map.setFog({
       'space-color': '#0a0908',
       'star-intensity': 0.15,
-      'color': '#0a0908',
-      'range': [2, 10],
+      'color': 'rgba(186, 210, 235, 0.12)',
+      'range': [0.5, 10],
       'horizon-blend': 0.04,
     })
 
-    // Remove DEM hillshade layers — they render grey at globe zoom and kill fill colours
+    // Desaturate satellite raster → natural low-saturation terrain palette
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(map.getStyle().layers as any[])
-      .filter((l: { type: string }) => l.type === 'hillshade')
-      .forEach((l: { id: string }) => { try { map.removeLayer(l.id) } catch {} })
-
-    // Warm land base and richer ocean
-    try { map.setPaintProperty('background', 'background-color', '#c8b896') } catch {}
-    try { map.setPaintProperty('water', 'fill-color', '#4e90b0') } catch {}
-
-    const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
-
-    // terrain-v2 landcover fills — global coverage from zoom 0
-    if (!map.getSource('terrain-v2')) {
-      map.addSource('terrain-v2', {
-        type: 'vector',
-        url: 'mapbox://mapbox.mapbox-terrain-v2',
+      .filter((l: { type: string }) => l.type === 'raster')
+      .forEach((l: { id: string }) => {
+        try {
+          map.setPaintProperty(l.id, 'raster-saturation', -0.55)
+          map.setPaintProperty(l.id, 'raster-brightness-min', 0.05)
+          map.setPaintProperty(l.id, 'raster-contrast', -0.1)
+        } catch { /* layer may not support property */ }
       })
-      map.addLayer(
-        { id: 'lc-wood',  type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
-          filter: ['==', ['get', 'class'], 'wood'],
-          paint: { 'fill-color': '#86a870', 'fill-opacity': 0.9 } },
-        firstSymbol,
-      )
-      map.addLayer(
-        { id: 'lc-grass', type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
-          filter: ['match', ['get', 'class'], ['grass', 'crop'], true, false],
-          paint: { 'fill-color': '#b0c088', 'fill-opacity': 0.75 } },
-        firstSymbol,
-      )
-      map.addLayer(
-        { id: 'lc-snow',  type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
-          filter: ['==', ['get', 'class'], 'snow'],
-          paint: { 'fill-color': '#e8eeee', 'fill-opacity': 0.92 } },
-        firstSymbol,
-      )
-    }
   }, [])
 
   return (
@@ -258,7 +234,7 @@ export default function GlobeHero() {
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/outdoors-v12"
+          mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
