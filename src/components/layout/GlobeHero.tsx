@@ -196,39 +196,18 @@ export default function GlobeHero() {
       ])
     }
 
-    // Find insertion point: before first symbol layer so labels stay on top
-    const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
+    // Dark outer space + subtle stars — must be set explicitly or some styles override it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(map as any).setFog({
+      color: 'rgba(10,9,8,0.5)',
+      'high-color': '#0d0c0b',
+      'space-color': '#0a0908',
+      'star-intensity': 0.25,
+      range: [0.8, 8],
+      'horizon-blend': 0.04,
+    })
 
-    // Landcover colours from mapbox-terrain-v2 (available from zoom 0)
-    if (!map.getSource('terrain-v2')) {
-      map.addSource('terrain-v2', {
-        type: 'vector',
-        url: 'mapbox://mapbox.mapbox-terrain-v2',
-      })
-      map.addLayer(
-        {
-          id: 'terrain-landcover',
-          type: 'fill',
-          source: 'terrain-v2',
-          'source-layer': 'landcover',
-          paint: {
-            'fill-color': [
-              'match', ['get', 'class'],
-              'wood',  '#b8c9a0',
-              'grass', '#cad9a8',
-              'scrub', '#cfc090',
-              'crop',  '#d8d0a0',
-              'snow',  '#e8eef2',
-                       '#d0c8a8',
-            ],
-            'fill-opacity': 0.88,
-          },
-        },
-        firstSymbol,
-      )
-    }
-
-    // DEM hillshade on top of landcover, below labels
+    // DEM hillshade for light/shadow terrain relief
     if (!map.getSource('mapbox-dem')) {
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
@@ -236,6 +215,7 @@ export default function GlobeHero() {
         tileSize: 512,
         maxzoom: 14,
       })
+      const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
       map.addLayer(
         {
           id: 'terrain-hillshade',
@@ -243,7 +223,7 @@ export default function GlobeHero() {
           source: 'mapbox-dem',
           paint: {
             'hillshade-illumination-direction': 335,
-            'hillshade-exaggeration': 0.5,
+            'hillshade-exaggeration': 0.45,
             'hillshade-shadow-color': '#5a3d25',
             'hillshade-highlight-color': '#ffffff',
             'hillshade-accent-color': '#6b4c30',
@@ -261,14 +241,15 @@ export default function GlobeHero() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Globe */}
-      <div className="absolute inset-0">
+      {/* Globe — outdoors-v12 has built-in biome colours (green/tan/snow);
+           mild desaturation keeps the palette calm */}
+      <div className="absolute inset-0" style={{ filter: 'saturate(0.82) brightness(1.05)' }}>
         <Map
           ref={mapRef}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle="mapbox://styles/mapbox/outdoors-v12"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
