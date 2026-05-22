@@ -196,7 +196,39 @@ export default function GlobeHero() {
       ])
     }
 
-    // DEM hillshade — adds light/shadow relief on top of outdoors terrain colours
+    // Find insertion point: before first symbol layer so labels stay on top
+    const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
+
+    // Landcover colours from mapbox-terrain-v2 (available from zoom 0)
+    if (!map.getSource('terrain-v2')) {
+      map.addSource('terrain-v2', {
+        type: 'vector',
+        url: 'mapbox://mapbox.mapbox-terrain-v2',
+      })
+      map.addLayer(
+        {
+          id: 'terrain-landcover',
+          type: 'fill',
+          source: 'terrain-v2',
+          'source-layer': 'landcover',
+          paint: {
+            'fill-color': [
+              'match', ['get', 'class'],
+              'wood',  '#b8c9a0',
+              'grass', '#cad9a8',
+              'scrub', '#cfc090',
+              'crop',  '#d8d0a0',
+              'snow',  '#e8eef2',
+                       '#d0c8a8',
+            ],
+            'fill-opacity': 0.88,
+          },
+        },
+        firstSymbol,
+      )
+    }
+
+    // DEM hillshade on top of landcover, below labels
     if (!map.getSource('mapbox-dem')) {
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
@@ -204,8 +236,6 @@ export default function GlobeHero() {
         tileSize: 512,
         maxzoom: 14,
       })
-      // Insert before the first symbol layer so labels stay on top
-      const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
       map.addLayer(
         {
           id: 'terrain-hillshade',
@@ -232,13 +262,13 @@ export default function GlobeHero() {
       onMouseLeave={handleMouseLeave}
     >
       {/* Globe */}
-      <div className="absolute inset-0" style={{ filter: 'saturate(0.68) brightness(1.06)' }}>
+      <div className="absolute inset-0">
         <Map
           ref={mapRef}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/outdoors-v12"
+          mapStyle="mapbox://styles/mapbox/light-v11"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
