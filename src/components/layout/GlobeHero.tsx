@@ -223,7 +223,7 @@ export default function GlobeHero() {
           source: 'mapbox-dem',
           paint: {
             'hillshade-illumination-direction': 335,
-            'hillshade-exaggeration': 0.35,
+            'hillshade-exaggeration': 0.22,
             'hillshade-shadow-color': '#5a3d25',
             'hillshade-highlight-color': '#ffffff',
             'hillshade-accent-color': '#6b4c30',
@@ -241,9 +241,9 @@ export default function GlobeHero() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Globe — satellite imagery desaturated to natural terrain palette:
-           forests → olive green, plains → tan, deserts → warm grey */}
-      <div className="absolute inset-0" style={{ filter: 'saturate(0.30) brightness(1.12) contrast(0.87)' }}>
+      {/* Globe — satellite imagery: brightness lifts dark ocean to blue,
+           saturate(0.62) keeps muted natural terrain colours */}
+      <div className="absolute inset-0" style={{ filter: 'saturate(0.62) brightness(1.40) contrast(0.82)' }}>
         <Map
           ref={mapRef}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
