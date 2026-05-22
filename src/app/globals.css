@@ -56,8 +56,12 @@ body {
 }
 
 /* 地图画布黑白化 — 照片标记是 DOM 叠层，不受此 filter 影响，保持原色 */
+/* 首页地球仪排除在外（.globe-hero 容器内保留原色） */
 .mapboxgl-canvas {
   filter: grayscale(1);
+}
+.globe-hero .mapboxgl-canvas {
+  filter: none;
 }
 
 /* 照片网格悬停效果 */

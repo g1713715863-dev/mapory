@@ -211,7 +211,7 @@ export default function GlobeHero() {
   return (
     <div
       ref={containerRef}
-      className="relative md:-mt-14 h-screen bg-[#0a0908] overflow-hidden"
+      className="globe-hero relative md:-mt-14 h-screen bg-[#0a0908] overflow-hidden"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
