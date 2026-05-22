@@ -196,18 +196,11 @@ export default function GlobeHero() {
       ])
     }
 
-    // Dark outer space + subtle stars
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(map as any).setFog({
-      color: 'rgba(10,9,8,0.5)',
-      'high-color': '#0d0c0b',
-      'space-color': '#0a0908',
-      'star-intensity': 0.25,
-      range: [0.8, 8],
-      'horizon-blend': 0.04,
-    })
+    // No setFog() — mapbox-gl v3 globe mode provides dark space + stars by
+    // default. Explicit fog with range [0.8, 8] covers the globe surface
+    // (radius 1.0) and desaturates all colours to grey.
 
-    // ── Terrain colour approach: vector fills + hillshade, no satellite ──────
+    // ── Terrain colour approach: vector fills, no satellite ──────────────────
     // 1. Repaint the background (= land base) to warm plains tan
     try { map.setPaintProperty('background', 'background-color', '#cec0a0') } catch {}
     // 2. Give water a richer blue so ocean is clearly blue, not pale grey
