@@ -244,30 +244,8 @@ export default function GlobeHero() {
       )
     }
 
-    // 4. DEM hillshade — warm highlight so mountains don't bleach to white
-    if (!map.getSource('mapbox-dem')) {
-      map.addSource('mapbox-dem', {
-        type: 'raster-dem',
-        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-        tileSize: 512,
-        maxzoom: 14,
-      })
-      map.addLayer(
-        {
-          id: 'terrain-hillshade',
-          type: 'hillshade',
-          source: 'mapbox-dem',
-          paint: {
-            'hillshade-illumination-direction': 335,
-            'hillshade-exaggeration': 0.45,
-            'hillshade-shadow-color': '#5a3d25',
-            'hillshade-highlight-color': '#ede8d8',
-            'hillshade-accent-color': '#7a5c3a',
-          },
-        },
-        firstSymbol,
-      )
-    }
+    // hillshade removed — in mapbox-gl v3 globe mode the hillshade layer
+    // overrides all colours with greyscale lighting; omit for now
   }, [])
 
   return (
