@@ -222,7 +222,6 @@ export default function GlobeHero() {
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
           mapStyle="mapbox://styles/mapbox/satellite-streets-v12"
-          // @ts-expect-error projection is a valid mapbox-gl v3 constructor option
           projection="globe"
           interactive={false}
           attributionControl={false}
