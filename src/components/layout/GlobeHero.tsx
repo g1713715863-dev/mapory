@@ -196,7 +196,7 @@ export default function GlobeHero() {
       ])
     }
 
-    // Dark outer space + subtle stars — must be set explicitly or some styles override it
+    // Dark outer space + subtle stars
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(map as any).setFog({
       color: 'rgba(10,9,8,0.5)',
@@ -207,7 +207,19 @@ export default function GlobeHero() {
       'horizon-blend': 0.04,
     })
 
-    // DEM hillshade for light/shadow terrain relief
+    // CSS filter doesn't work on WebGL canvas (GPU compositing bypasses it).
+    // Use Mapbox GL raster paint properties instead — processed entirely on GPU.
+    // Apply to all raster layers (= the satellite imagery tiles in this style).
+    for (const layer of map.getStyle().layers) {
+      if (layer.type === 'raster') {
+        map.setPaintProperty(layer.id, 'raster-saturation', -0.42)
+        map.setPaintProperty(layer.id, 'raster-brightness-min', 0.06)
+        map.setPaintProperty(layer.id, 'raster-brightness-max', 0.88)
+        map.setPaintProperty(layer.id, 'raster-contrast', -0.08)
+      }
+    }
+
+    // DEM hillshade for terrain relief
     if (!map.getSource('mapbox-dem')) {
       map.addSource('mapbox-dem', {
         type: 'raster-dem',
@@ -223,7 +235,7 @@ export default function GlobeHero() {
           source: 'mapbox-dem',
           paint: {
             'hillshade-illumination-direction': 335,
-            'hillshade-exaggeration': 0.22,
+            'hillshade-exaggeration': 0.28,
             'hillshade-shadow-color': '#5a3d25',
             'hillshade-highlight-color': '#ffffff',
             'hillshade-accent-color': '#6b4c30',
@@ -241,9 +253,9 @@ export default function GlobeHero() {
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Globe — satellite imagery: brightness lifts dark ocean to blue,
-           saturate(0.62) keeps muted natural terrain colours */}
-      <div className="absolute inset-0" style={{ filter: 'saturate(0.62) brightness(1.40) contrast(0.82)' }}>
+      {/* Globe — colour tuned via raster paint properties in handleLoad (CSS filter
+           doesn't affect WebGL canvas; Mapbox GL raster props work on GPU) */}
+      <div className="absolute inset-0">
         <Map
           ref={mapRef}
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
