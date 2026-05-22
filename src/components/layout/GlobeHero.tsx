@@ -196,39 +196,46 @@ export default function GlobeHero() {
       ])
     }
 
-    // No setFog() — mapbox-gl v3 globe mode provides dark space + stars by
-    // default. Explicit fog with range [0.8, 8] covers the globe surface
-    // (radius 1.0) and desaturates all colours to grey.
+    // Dark space + stars — range [2, 10] starts well outside the globe surface
+    // (globe surface ≈ fog-unit 0.8–1.0) so the fog colour never overlays terrain
+    map.setFog({
+      'space-color': '#0a0908',
+      'star-intensity': 0.15,
+      'color': '#0a0908',
+      'range': [2, 10],
+      'horizon-blend': 0.04,
+    })
 
-    // ── Terrain colour approach: vector fills, no satellite ──────────────────
-    // 1. Repaint the background (= land base) to warm plains tan
-    try { map.setPaintProperty('background', 'background-color', '#cec0a0') } catch {}
-    // 2. Give water a richer blue so ocean is clearly blue, not pale grey
-    try { map.setPaintProperty('water', 'fill-color', '#6fa8c8') } catch {}
+    // Remove DEM hillshade layers — they render grey at globe zoom and kill fill colours
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(map.getStyle().layers as any[])
+      .filter((l: { type: string }) => l.type === 'hillshade')
+      .forEach((l: { id: string }) => { try { map.removeLayer(l.id) } catch {} })
+
+    // Warm land base and richer ocean
+    try { map.setPaintProperty('background', 'background-color', '#c8b896') } catch {}
+    try { map.setPaintProperty('water', 'fill-color', '#4e90b0') } catch {}
 
     const firstSymbol = map.getStyle().layers.find(l => l.type === 'symbol')?.id
 
-    // 3. terrain-v2 landcover fills — available from zoom 0, global coverage
+    // terrain-v2 landcover fills — global coverage from zoom 0
     if (!map.getSource('terrain-v2')) {
       map.addSource('terrain-v2', {
         type: 'vector',
         url: 'mapbox://mapbox.mapbox-terrain-v2',
       })
-      // Forest / jungle
       map.addLayer(
         { id: 'lc-wood',  type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
           filter: ['==', ['get', 'class'], 'wood'],
-          paint: { 'fill-color': '#96b882', 'fill-opacity': 0.88 } },
+          paint: { 'fill-color': '#86a870', 'fill-opacity': 0.9 } },
         firstSymbol,
       )
-      // Grass / crops
       map.addLayer(
         { id: 'lc-grass', type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
           filter: ['match', ['get', 'class'], ['grass', 'crop'], true, false],
-          paint: { 'fill-color': '#bfcc9c', 'fill-opacity': 0.72 } },
+          paint: { 'fill-color': '#b0c088', 'fill-opacity': 0.75 } },
         firstSymbol,
       )
-      // Snow / ice
       map.addLayer(
         { id: 'lc-snow',  type: 'fill', source: 'terrain-v2', 'source-layer': 'landcover',
           filter: ['==', ['get', 'class'], 'snow'],
@@ -236,9 +243,6 @@ export default function GlobeHero() {
         firstSymbol,
       )
     }
-
-    // hillshade removed — in mapbox-gl v3 globe mode the hillshade layer
-    // overrides all colours with greyscale lighting; omit for now
   }, [])
 
   return (
@@ -254,7 +258,7 @@ export default function GlobeHero() {
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           initialViewState={{ longitude: 0, latitude: 20, zoom: BASE_ZOOM }}
           style={{ width: '100%', height: '100%' }}
-          mapStyle="mapbox://styles/mapbox/light-v11"
+          mapStyle="mapbox://styles/mapbox/outdoors-v12"
           interactive={false}
           attributionControl={false}
           onLoad={handleLoad}
