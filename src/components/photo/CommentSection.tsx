@@ -10,7 +10,6 @@ interface Comment {
   body: string
   created_at: string
   display_name: string | null
-  email: string
 }
 
 interface CurrentUser {
@@ -95,7 +94,7 @@ export default function CommentSection({ photoId }: { photoId: string }) {
           <div key={c.id}>
             <div className="flex items-baseline gap-2">
               <span className="text-stone-300 text-xs font-medium">
-                {c.display_name || c.email.split('@')[0]}
+                {c.display_name || '用户'}
               </span>
               <span className="text-stone-600 text-[10px]">
                 {new Date(c.created_at).toLocaleDateString('zh-CN')}
