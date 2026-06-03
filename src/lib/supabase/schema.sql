@@ -117,21 +117,21 @@ create policy "Admins can delete any comment"
 create policy "Users can delete own comments"
   on public.comments for delete using (auth.uid() = user_id);
 
--- View: comments with user display name
-create or replace view public.comments_with_user as
+-- View: comments with user display name (security_invoker prevents privilege escalation)
+create view public.comments_with_user
+with (security_invoker = true)
+as
   select
     c.id,
     c.photo_id,
     c.user_id,
     c.body,
     c.created_at,
-    p.display_name,
-    u.email
+    p.display_name
   from public.comments c
-  join auth.users u on u.id = c.user_id
   left join public.user_profiles p on p.id = c.user_id;
 
-grant select on public.comments_with_user to anon, authenticated;
+grant select on public.comments_with_user to authenticated;
 
 -- Share links (admin-created links giving access to specific trips)
 create table public.share_links (
